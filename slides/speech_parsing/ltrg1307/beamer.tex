@@ -1,0 +1,1085 @@
+
+\documentclass{lecture}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\usepackage{algorithmicx}
+
+\usepackage{tikz-dependency}
+\usepackage{placeins}
+\usepackage{xcolor}
+\usepackage{cancel}
+
+\title{Incremental parsing of disfluent speech}
+\author{Matthew Honnibal}
+
+
+\begin{document}
+
+\titleslide
+
+\begin{points}{Parsing, uh, incremental parsing of disfluencies}
+\p Spontaneous speech often contains disﬂuencies:\\
+\emph{I want a ﬂight to Boston, uh, I mean, to Denver on Friday}
+\p Fluent transcripts are better for downstream tasks, e.g. information extraction
+\p Disfluencies are also a problem for inter-mediate processes, e.g. parsing
+\p (Most) Previous work: \emph{Pipeline} approach. First detect disfluencies, then parse
+\p This work: \emph{Joint} approach: Detect disfluencies during parsing.
+\end{points}
+
+\begin{plain}{Why incremental dependency parsing?}
+    \begin{enumerate}
+        \item No grammar --- almost entirely `empiricist'\\
+            \begin{itemize}
+                \item \textsc{pcfg}s encode some small linguistic insights, e.g.
+                      they expect to learn recursive structures
+                  \item What we're trying to learn (disfluent trees) aren't
+                        really grammatical sentences,
+                      so those assumptions might be costly
+            \end{itemize}
+        \item Linear time, so won't need sentence segmentation
+        \item Results are surprisingly strong. On WSJ:\\
+            \begin{table}
+            \begin{tabular}{l|rr}
+                \hline
+                Model         & UAS   & Sents/Second \\
+                \hline \hline
+                Stanford PCFG & 90.1 & 3.5 \\
+                Stanford Factored & 91.8 & 0.9 \\
+                Redshift Greedy & 91.6 & 865 \\
+                Redshift Beam=8 & 93.2  & 212 \\
+                Redshift beam=64 & 93.5 & 34 \\
+                \hline
+            \end{tabular}
+        \end{table}
+    \end{enumerate}
+\end{plain}
+
+\begin{plain}{Arc-Eager Incremental Dependency Parsing}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& |[q]|'d \& |[q]|like \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{1}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& |[q]|like \& |[q]|a \\
+        \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{2}{}
+    \wordgroup{1}{1}{1}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& |[q]|a \& |[q]|flight \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    %\depedge{2}{1}{}
+    \wordgroup{1}{1}{1}{}
+    \wordgroup{1}{2}{2}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& |[q]|a \& |[q]|flight \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    \depedge{3}{2}{}
+    \wordgroup{1}{1}{1}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& |[q]|a \& |[q]|flight \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& |[q]|flight \& |[q]|to \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{4}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& |[q]|to \& |[q]|Boston \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{4}{4}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& |[q]|to \& |[q]|Boston \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& |[q]|Boston \& |[q]| uh \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{6}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& |[q]| uh \& |[q]| Denver \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{7}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \&  uh \& |[q]| Denver \& |[q]|\textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{8}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{disfl}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+    \wordgroup{1}{7}{7}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \&  uh \& |[q]| Denver \& |[q]|\textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{8}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{disfl}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  |[q]|\textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{9}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+    \wordgroup{1}{8}{8}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  |[q]|\textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{9}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{10}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \depedge{6}{9}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+    \wordgroup{1}{9}{9}{}
+\end{dependency}
+
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{10}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \depedge{6}{9}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    \wordgroup{1}{6}{6}{}
+\end{dependency}
+
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{10}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \depedge{6}{9}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+\end{dependency}
+
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{10}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \depedge{6}{9}{}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+
+\begin{plain}{Stack circled, arrow at buffer, look-ahead grey}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& 'd \& like \& a \& flight \& to \& Boston \& uh \& Denver \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{10}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{}
+    \depedge{3}{5}{}
+    \depedge{5}{6}{}
+    \depedge[edge below]{6}{7}{erased}
+    \depedge{6}{8}{IP}
+    \depedge{6}{9}{}
+    \depedge{10}{3}{ROOT}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{points}{Approach 1: JustParse}
+    \p A disfluent sentence is a fluent sentence plus some other text
+    \p We want a projective tree over the fluent sentence
+    \p We don't care about the structure of the other text --- \textbf{so long as we mark it
+    as an edit} for future reference.
+    \p Let's learn a tree where the other text is included, and just label the
+       disfluent regions differently
+    \p Also, label `interruption points' differently to help the edit detection
+\end{points}
+
+\begin{points}{Extra Features 1: Match Features}
+\p Limited number of \emph{context tokens} for top-of-stack,
+    its parent and children, first-of-buffer, its children, next two tokens, etc.
+\p For each pair of those tokens, ask:\\
+\begin{itemize}
+        \p Do the tokens' words match? e.g. S0$_{L0}$-N0$_{L0}$-wmatch
+        \p Do the tokens' POS tags match? e.g. S0$_{L2}$-S0h-pmatch
+        \p If the words match, what's the word? e.g. S0$_{L0}$-N0$_{L0}$-wmatch-the
+        \p If the POS tags match, what's the tag? e.g. S0-N1-pmatch-DT
+\end{itemize}
+\p 18 tokens, so ${18 \choose 2} = 153$ combinations
+\p $153 + 152 + (153 * v) + (153 * t)$ possible features added, for a vocabulary
+   of size $v$ and a tag-set of size $t$
+\end{points}
+
+\begin{points}{Extra Features 2: Rough Copy}
+    \p I extended the state representation to track the \emph{leftmost edge} of
+       each word's subtree
+    \p This lets me ask how much of the top of the stack and the start of the buffer
+       string-match, regardless of how they're structured
+    \p Feature for length of match, and also whether whole constituent matches
+    \p Same features for POS match, instead of words
+\end{points}
+
+\begin{points}{Extra Features 3: History features}
+
+\p Is the previous word edited?
+\p Are the previous two words edited?
+\p If the previous word's an edit, does it word-match the current word?
+\p If the previous word's an edit, does it POS-match the current word?
+\p If the previous word's an edit, what's its word?
+\p If the previous word's an edit, what's its POS?
+\p If the previous word's an edit, how much of S0  and N0's subtrees word-match?
+\p If the previous 2 words are edits, how much of S0  and N0's subtrees word-match?
+\p If the previous word's an edit, how much of S0  and N0's subtrees POS-match?
+\p If the previous 2 words are edits, how much of S0  and N0's subtrees POS-match?
+
+\end{points}
+
+\begin{plain}{Parsing Results}
+    \begin{table}
+    \begin{tabular}{l|rr}
+        \hline
+        Model      & UAS   & LAS \\
+        \hline \hline
+        JustParse   & 90.8 & 88.6    \\
+        +Feats      & 91.1 & 88.9    \\
+        %EDIT+Feats & 91.4 & 89.2    \\
+        %\hline
+        %Oracle Edits & 92.5  & 90.1 \\
+        \hline
+    \end{tabular}
+    \centering
+\end{table}
+\begin{itemize}
+    \item Gold-standard POS tags used
+    \item Gold-standard sentence/segment boundaries
+    \item Arcs from disfluent words not scored
+    \item Arcs to disfluent words from non-disfluent words penalised
+    \item Arcs to words incorrectly labelled disfluent penalised
+    \item Arcs from fillers (e.g. um, uh) not scored
+\end{itemize}
+\end{plain}
+
+\begin{plain}{Disfluency detection results}
+    \begin{table}
+    \begin{tabular}{l|rrr}
+        \hline
+        Model         & P    & R     & F \\
+        \hline \hline
+        JustParse     & 80.2     & 65.0  & 71.8  \\
+        +Feats        & 87.1 & 73.8  & 79.9 \\
+        %EDIT+Feats    & 91.7 & 74.8  & 82.4 \\
+        \hline
+    \end{tabular}
+    \centering
+\end{table}
+\end{plain}
+
+\begin{points}{Problems with the JustParse model}
+\p The model is trained to care as much about edit-internal structure as any other
+   part of the tree
+\p ...But we don't care about this structure
+\p ...And it may not even be very meaningful
+\p Edit regions are assigned whatever structure the Stanford dependency converter
+   produces given the gold-standard PTB trees
+\p This structure is unreliable for practical and theoretical reasons
+\p \textbf{The truth is not necessarily a tree here}
+\end{points}
+
+\begin{plain}{Example of cyclic dependencies}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \& want \& uh \& would \& like \\
+    \end{deptext}
+    \depedge{5}{4}{}
+    \depedge[green]{5}{1}{}
+    \depedge{4}{3}{IP}
+    \depedge[red, edge below]{2}{1}{}
+    \depedge{5}{2}{disfl}
+\end{dependency}
+\end{figure}
+The arc in red \emph{does} make sense here. But ultimately we want the arc in green.
+\end{plain}
+
+\begin{points}{Learning latent structure for edit regions}
+\p We have two problems:
+\begin{itemize}
+    \item We don't just want to trust the Stanford-converter's output;
+    \item We want to accomodate these `helical' dependency structures
+\end{itemize}
+\p The first step to both is to let the structure of edited regions remain \emph{implicit}
+\p That is, we don't want to force a weight update for two hypotheses about how
+to structure an edit region
+\p (But we do want to be strict with the model about the edit region boundaries)   
+\end{points}
+
+\begin{points}{Training a beam parser with a dynamic oracle}
+    \p Standard training method:\\
+\begin{enumerate}
+    \item Map the gold tree to a single gold-standard transition sequence
+    \item Score the gold-standard transitions
+    \item Beam-search using the current weights for the best prediction
+    \item If the best is not the gold-standard, do a weight update
+\end{enumerate}
+\p Dynamic oracle:
+\begin{enumerate}
+    \item Define an oracle that computes a \emph{cost} for each transition from the current
+   state. May be multiple zero-cost transitions, thus multiple gold-standard
+   transition sequences.
+    \item Do beam search for the best predicted transition sequence 
+    \item If zero-cost (i.e. gold-standard), no weight update
+    \item Else, do beam search for the best gold-standard transition sequence
+    \item Do weight update
+\end{enumerate}
+\p First use of dynamic oracle for beam parsing. Only recently developed for
+   greedy parsing
+\end{points}
+
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& |[q]|red \& |[q]|square \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{1}{}
+    %\depedge{3}{2}{}
+    %\depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        %The \& red \& square \& uh \& rectangle \&  \textsc{r} \\
+        The \& red \& |[q]|square \& |[q]|uh \\
+        %\& rectangle \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{2}{}
+    %\depedge{3}{2}{}
+    %\depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{1}{1}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        %The \& red \& square \& uh \& rectangle \&  \textsc{r} \\
+        The \& red \& square \& |[q]|uh \& |[q]|rectangle \\
+        %\&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    %\depedge{3}{2}{}
+    %\depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{1}{1}{}
+    \wordgroup{1}{2}{2}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& |[q]|uh \& |[q]|rectangle \\
+        %\&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    \depedge{3}{2}{}
+    %\depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{1}{1}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& |[q]|uh \& |[q]|rectangle \\
+        %\&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& uh \& |[q]|rectangle \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{4}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+\begin{plain}{A non-monotonic EDIT transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& uh \& rectangle \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    %\depedge{5}{4}{}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{4}{4}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+\begin{plain}{A non-monotonic EDIT transition}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& uh \& rectangle \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge[edge below]{5}{4}{IP}
+    %\depedge{5}{2}{}
+    %\depedge{5}{1}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+
+\begin{plain}{A non-monotonic EDIT transition}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& uh \& rectangle \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge[edge below]{5}{4}{IP}
+    \depedge[green, dashed]{5}{3}{disfl}
+    \depedge[red, edge below, dashed]{5}{1}{}
+    \depedge[red, edge below, dashed]{5}{2}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+
+\begin{plain}{EDIT transition before (above) and after (below)}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        The \& red \& square \& uh \& rectangle \&  \textsc{r} \\
+        The \& red \& \cancel{square} \& uh \& rectangle \&  \textsc{r} \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{3}{2}{}
+    \depedge{3}{1}{}
+    \depedge{5}{4}{IP}
+    %\depedge[green, dashed]{5}{3}{}
+    %\depedge[red, edge below, dashed]{5}{1}{}
+    %\depedge[red, edge below, dashed]{5}{2}{}
+    %\depedge{6}{5}{root}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{2}{1}{1}{}
+    \wordgroup{2}{2}{2}{}
+    \depedge[edge below]{5}{4}{IP}
+\end{dependency}
+\end{figure}
+EDIT: Mark the top of the stack and its rightward children as disfluent. Restore
+leftware children to the stack.
+\end{plain}
+
+\begin{points}{More motivating examples for EDIT}
+    \p She \emph{had her own} --- \textbf{still had her own}
+    \p Well of course \emph{it 's} --- you know, \textbf{it 's}
+    \p Fewer than one percent of the \emph{heads of} --- uh, \textbf{chairmen of the board}
+    \p 
+\end{points}
+
+\begin{plain}{Results}
+    \begin{table}
+    \begin{tabular}{l|rr}
+        \hline
+        Model         & UAS  & Disf. F \\
+        \hline \hline
+        JustParse     & 90.8 & 71.8  \\
+        +Feats        & 91.1 & 79.9 \\
+        EDIT+Feats    & \textbf{91.4} & \textbf{82.4} \\
+        \hline
+        Hale et al (2006) & 82.1 & 64.4 \\
+        Qian and Liu (2013)         & -- & 84.1 \\
+        Johnson and Charniak (2004) & -- & 79.7 \\
+        \hline
+    \end{tabular}
+    \centering
+\end{table}
+My results are on development set, and not fully comparable. Also I used gold-standard
+POS tags.
+\end{plain}
+
+\begin{points}{Conclusion and future work}
+\p First successful joint parsing and disfluency detection
+\p Incremental dependency parsers are well suited to the task
+\p Full flexibility in feature functions, due to no dynamic programming
+\p Latent edit structures and non-monotonic transition system bring further improvements
+\p Incremental model will be able to handle non-gold sentence segmentation
+\p Future work: conditional language model for speech recognition
+\end{points}
+
+\end{document}

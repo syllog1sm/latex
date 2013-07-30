@@ -1,0 +1,31 @@
+\ProvidesPackage{beamerthemeGPN}
+
+\RequirePackage{colours}
+
+\pgfdeclareimage[height=2cm]{minor logo}{gpn_new}
+\logo{\pgfuseimage{minor logo}\hspace*{1mm}}
+
+\mode<presentation>
+
+\useoutertheme{logo}
+\useinnertheme[shadow=true]{rounded}
+\usecolortheme{orchid}
+\usecolortheme{whale}
+
+\setbeamertemplate{items}[circle]
+\setbeamertemplate{sections/subsections in toc}[circle]
+
+\setbeamercolor{background canvas}{bg=white}
+\setbeamercolor{structure}{fg=gpndark, bg=gpnlight}
+\setbeamercolor{palette primary}{fg=white, bg=gpndark}
+\setbeamercolor{palette secondary}{fg=black, bg=gpnlight}
+\setbeamercolor{palette tertiary}{fg=black, bg=gpnlight}
+\setbeamercolor{palette quaternary}{fg=black, bg=white}
+\setbeamercolor{colour box}{fg=black, bg=gpnlight}
+
+\setbeamercolor{frametitle}{fg=white, bg=gpndark}
+\setbeamercolor{part title}{fg=black, bg=gpnlight}
+\setbeamercolor{navigation symbols}{fg=lightgray}
+
+\mode
+<all>
