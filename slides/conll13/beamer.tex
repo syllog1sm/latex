@@ -1,0 +1,485 @@
+
+\documentclass{lecture}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\usepackage{algorithmicx}
+
+\usepackage{tikz-dependency}
+\usepackage{placeins}
+\usepackage{xcolor}
+
+\title{Non-monotonic state transitions for dependency parsing}
+\author{Matthew Honnibal, Yoav Goldberg and Mark Johnson}
+
+
+\begin{document}
+
+\titleslide
+
+\begin{plain}{Before (above) and After (below) Non-monotonic Left-Arc}
+
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+        \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+        \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+        \tikzstyle{m}=[font=\bfseries\itshape]
+        \tikzstyle{n}=[font=\itshape]
+
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill   \&  \& fall \& \textsc{r} \\
+|[m]|S \& |[m]|L \& |[m]|S   \& |[f]|R \& |[m]|R \& |[m]|D \& |[m]|R \& |[m]|D \& |[t]|NM-L \\
+    1 \&     2       \& 3  \&   4      \& 5          \& 6 \& 7     \& 8 \& 9 \& 10 \& 11 \& 12 \\
+    I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill   \&      \& fall \& \textsc{r} \\
+        \end{deptext}
+    \depedge{3}{1}{2}
+    \depedge[red, ultra thick]{3}{5}{4}
+    \depedge{5}{7}{5}
+    \depedge{5}{9}{7}
+    
+    \deproot[edge height=0.7cm, ultra thick]{11}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    
+    \depedge[edge below]{3}{1}{2}
+    \depedge[edge below]{5}{7}{5}
+    \depedge[edge below]{5}{9}{7}
+    \depedge[edge below, green, ultra thick]{11}{5}{9}
+\end{dependency}
+\end{figure}
+
+We allow the Left-Arc to `clobber' the existing head of \emph{Jack},  \emph{saw}.
+It sets \emph{fall} as the head of \emph{Jack} instead. 
+
+\end{plain}
+
+
+
+\begin{points}{Abstract}
+    \p Previous incremental (e.g. left-to-right) parsers have used
+    \emph{monotonic} transition systems
+    \p Monotonicity means the parser \emph{commits} to each action
+    \p Previous actions restrict the choice of future actions\\
+    \vspace*{.2in}
+    \par
+    \p We introduce a limited amount of `non-monotonic' behaviour
+    \p i.e. an action might be inconsistent with previous decisions
+    \p Accuracy improves for a greedy parser on multiple languages
+    \p 91.1\% English UAS, at over 1,000 sentences per second
+\end{points}
+
+
+\begin{plain}{The Arc-Eager Transition System}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& fall   \& \& \textsc{r} \\
+         \& \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{1}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+
+\end{plain}
+
+
+
+\begin{plain}{Parse example. Words on stack circled, arrow shows buffer}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& fall   \& \& \textsc{r} \\
+        S \& \\
+    \end{deptext}
+    \wordgroup{1}{1}{1}{}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+
+\end{plain}
+
+
+\begin{plain}{Parse example. Words on stack circled, arrow shows buffer}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& fall   \& \& \textsc{r} \\
+      S   \& L \\ 
+    \end{deptext}
+    \depedge{3}{1}{}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+
+\end{plain}
+
+
+\begin{plain}{Parse example. Words on stack circled, arrow shows buffer}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& fall   \& \& \textsc{r} \\
+      S   \& L \& S \\ 
+    \end{deptext}
+    \depedge{3}{1}{}
+    \depedge{3}{1}{}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Parse example. Words on stack circled, arrow shows buffer}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& fall   \& \& \textsc{r} \\
+        S   \& L \& S \& |[f]|R \\ 
+    \end{deptext}
+    \depedge{3}{1}{}
+    \depedge[red]{3}{5}{}
+    \deproot[edge height=0.7cm, ultra thick]{7}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+
+\begin{plain}{Arc-Eager Example. Words on stack circled, arrow shows buffer}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& fall   \& \& \textsc{r} \\
+        S   \& L \& S \& |[f]|R \& *L \&  \\ 
+    \end{deptext}
+    \depedge{3}{1}{}
+    \depedge[red]{3}{5}{}
+    \depedge[dashed,ultra thick]{7}{5}{}
+    \deproot[edge height=0.7cm, ultra thick]{9}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+\end{dependency}
+\end{figure}
+    \begin{itemize}
+        \item \textbf{S}hift: \emph{Push} the first word of the buffer onto the stack
+    \item \textbf{R}ight-Arc: Set top-of-stack as Head of start-of-buffer + \emph{Push}.
+    \item Re\textbf{D}uce: \emph{Pop} the top word off the stack
+    \item \textbf{L}eft-Arc: Set start-of-buffer as Head of top-of-stack + \emph{Pop}.
+    \end{itemize}
+\end{plain}
+
+\begin{plain}{Arc-Eager move constraints}
+Every word is pushed once, popped once, and has its head set once:
+\begin{table}
+    \centering
+    \begin{tabular}{l|ll}
+           & Push           & Pop \\
+        \hline
+Adds head  & \emph{Right-Arc}   & \textbf{Left-Arc}    \\
+No head    & \textbf{Shift} & \emph{Reduce}    \\
+\end{tabular}
+\end{table}
+To ensure one head per word, the pop moves are constrained:
+\begin{itemize}
+    \item \textbf{Left-Arc} only if top-of-stack was pushed via Shift (no head);
+    \item \textbf{Reduce} only if top-of-stack was pushed via Right-Arc (has head).
+\end{itemize}
+We remove these constraints, and let the parser revise the previous Shift/Right-Arc
+decision if the model recommends it.
+\end{plain}
+
+\begin{plain}{State needing Non-monotonic Left-Arc}
+
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+        \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+        \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+        \tikzstyle{m}=[font=\bfseries\itshape]
+        \tikzstyle{n}=[font=\itshape]
+
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill   \&  \& fall \& \textsc{r} \\
+|[m]|S \& |[m]|L \& |[m]|S   \& |[f]|R \& |[m]|R \& |[m]|D \& |[m]|R \& |[m]|D \& \\
+
+    1 \&     2       \& 3  \&   4      \& 5          \& 6 \& 7     \& 8 \& 9 \& 10 \& 11 \& 12 \\
+    I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill   \&      \& fall \& \textsc{r} \\
+        \end{deptext}
+    \depedge{3}{1}{2}
+    \depedge[red, ultra thick]{3}{5}{4}
+    \depedge{5}{7}{5}
+    \depedge{5}{9}{7}
+    
+    \deproot[edge height=0.7cm, ultra thick]{11}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+\end{dependency}
+\end{figure}
+\end{plain}
+
+
+\begin{plain}{Before (above) and After (below) Non-monotonic Left-Arc}
+
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+        \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+        \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+        \tikzstyle{m}=[font=\bfseries\itshape]
+        \tikzstyle{n}=[font=\itshape]
+
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill   \&  \& fall \& \textsc{r} \\
+|[m]|S \& |[m]|L \& |[m]|S   \& |[f]|R \& |[m]|R \& |[m]|D \& |[m]|R \& |[m]|D \& |[t]|NM-L \\
+    1 \&     2       \& 3  \&   4      \& 5          \& 6 \& 7     \& 8 \& 9 \& 10 \& 11 \& 12 \\
+    I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill   \&      \& fall \& \textsc{r} \\
+        \end{deptext}
+    \depedge{3}{1}{2}
+    \depedge[red, ultra thick]{3}{5}{4}
+    \depedge{5}{7}{5}
+    \depedge{5}{9}{7}
+    
+    \deproot[edge height=0.7cm, ultra thick]{11}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    
+    \depedge[edge below]{3}{1}{2}
+    \depedge[edge below]{5}{7}{5}
+    \depedge[edge below]{5}{9}{7}
+    \depedge[edge below, green, ultra thick]{11}{5}{9}
+\end{dependency}
+\end{figure}
+
+We allow the Left-Arc to `clobber' the existing head of \emph{Jack},  \emph{saw}.
+It sets \emph{fall} as the head of \emph{Jack} instead. 
+
+\end{plain}
+
+\begin{plain}{State needing Non-monotonic Reduce}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill \&   \& \textsc{r} \\
+       |[m]|S \& |[m]|L \& |[m]|S   \& |[f]|S \& |[m]|R \& |[m]|D \& |[m]|R \& |[m]|D  \\
+1 \&     2       \& 3  \&   4      \& 5          \& 6 \& 7     \& 8 \\
+\end{deptext}
+    \depedge{3}{1}{2}
+    \depedge{5}{7}{5}
+    \depedge{5}{9}{7}
+    
+    \deproot[edge height=0.7cm, ultra thick]{11}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+\end{dependency}
+\end{figure}
+The Move 4 Shift leaves \emph{Jack} waiting for a head from the buffer.
+\end{plain}
+
+
+\begin{plain}{Before (above) and After (below) Non-monotonic Reduce}
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{f}=[text=red,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill \&   \& \textsc{r} \\
+        |[m]|S \& |[m]|L \& |[m]|S   \& |[f]|S \& |[m]|R \& |[m]|D \& |[m]|R \& |[m]|D \& |[t]|NM-D \\
+        1 \&     2       \& 3  \&   4      \& 5          \& 6 \& 7     \& 8 \& 9 \\
+
+        I \&           \& saw \&          \& Jack       \& \& and     \&           \& Jill \& \& \textsc{r} \\
+\end{deptext}
+    \depedge{3}{1}{2}
+    \depedge{5}{7}{5}
+    \depedge{5}{9}{7}
+    
+    \deproot[edge height=0.7cm, ultra thick]{11}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{5}{5}{}
+    
+    \depedge[edge below]{3}{1}{2}
+    \depedge[edge below]{5}{7}{5}
+    \depedge[edge below]{5}{9}{7}
+    \depedge[edge below, green, ultra thick]{3}{5}{9}
+    \wordgroup{4}{3}{3}{}
+\end{dependency}
+\end{figure}
+Non-monotonic Reduce pops \emph{Jack}, and an
+arc is inserted from \emph{saw} --- as though Right-Arc were selected at move 4.
+\end{plain}
+
+\begin{points}{Dynamic oracle used for training}
+\p Need examples of mistakes to be corrected
+\p Until recently, we only knew how to map a dependency parse to a single,
+gold-standard transition sequence
+\p Goldberg and Nivre's (2012) \emph{dynamic oracle} for training: \\
+\begin{enumerate}
+    \item Use model to score all actions
+    \item Use oracle to ascribe a \emph{cost} to each possible action, for how many
+          arcs it makes newly unreachable
+    \item Label the example with the highest-scoring zero-cost action
+    \item Apply highest-scoring action --- \emph{even if non-zero cost}
+    \item Continue training from the resulting state
+\end{enumerate}
+\p Goldberg and Nivre (2012) is our baseline system (previous state-of-the-art)
+for greedy deterministic parsing
+\end{points}
+
+\begin{plain}{WSJ test accuracies}
+\begin{table}
+%UAS
+%baseline 21: 90.9 +/- 0.04
+%both 21: 91.1 +/- 0.07
+%LAS
+%baseline 21: 88.7 +/- 0.05
+%both 21: 88.9 +/- 0.07
+% UAS
+% baseline 21: 90.6 +/- 0.07
+% both 21: 91.0 +/- 0.05
+% LAS
+% baseline 21: 89.5 +/- 0.07
+% both 21: 89.9 +/- 0.06
+    \centering
+    \small
+    \begin{tabular}{l|rr|rr}
+        \hline 
+System  &    \multicolumn{2}{c}{Stanford} & \multicolumn{2}{|c}{Penn2Malt} \\
+                    &  LAS  & UAS  & LAS & UAS \\
+        \hline \hline
+Baseline(G\&N-12)   & 88.7 & 90.9 & 88.7  & 90.6 \\
+NM L+D              & 88.9 & 91.1 & 88.9  & 91.0 \\
+\hline
+    \end{tabular}
+\end{table}
+
+Also: statistically significant improvement on 5/10 CoNLL languages; 3/10 trending up;
+none decline.
+\end{plain}
+
+
+\begin{points}{When do they help?}
+    \p Subordinating conjunction vs. preposition\\
+    \emph{Stores were closed \textbf{after} shoppers left}\\
+    Here \emph{after} is headed by \emph{left}\\
+    vs.\\
+    \emph{Stores were closed \textbf{after} midnight}\\
+    Here \emph{after} is headed by \emph{closed}
+    \p Direct object vs. complement clause\\
+    \emph{NCNB corp. reported net \textbf{income} last night}\\
+    Here \emph{income} is headed by \emph{reported}\\
+    vs\\
+    \emph{NCNB corp. reported net \textbf{income} doubled}\\
+    Here \emph{income} is headed by \emph{doubled}\\
+\end{points}
+
+\begin{plain}{How often are non-monotonic moves used on dev. data?}
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrrr}
+\hline
+         & TP  &  FP & TN     & FN \\
+\hline \hline
+Left-Arc & 60  & 14  & 18,466 & 285 \\
+Reduce   & 52  & 26  & 14,066 & 250  \\
+Total    & 112 & 40  & 32,532  & 535 \\
+\hline
+\end{tabular}
+\caption{\small
+    True/False positive/negative rates for the prediction of the non-monotonic
+    transitions. The non-monotonic transitions add
+    correct dependencies 112 times, and produce worse parses 40 times.
+    535 opportunities for non-monotonic transitions were missed.
+\label{tab:confusions}}
+\end{table}
+\end{plain}
+
+\begin{points}{Conclusion and future work}
+    \p Monotonicity has been attractive, as it seems to make search simpler
+       (less spurious ambiguity)
+    \p But if we're not searching much of the space anyway, it may be worth
+       relaxing it
+       \vspace{0.2in}
+    \p Limited non-monotonic behaviour improves a state-of-the-art greedy
+    deterministic parser by 0.2\% UAS on English (p $< 0.001$).
+    \p Improvement robust across different languages and labelling schemes.
+    \vspace{0.2in}
+    \p Preliminary results suggest non-monotonic behaviour will be useful for
+       parsing speech disfluencies.
+\end{points}
+
+\end{document}
