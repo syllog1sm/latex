@@ -1,0 +1,736 @@
+% vim: set textwidth=78 fo+=t :
+
+\documentclass[11pt,letterpaper]{article}
+\usepackage{acl2013}
+\usepackage{amsmath, amsthm}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{xspace}
+\usepackage{natbib}
+\usepackage{tikz-dependency}
+\usepackage{placeins}
+\usepackage{xcolor}
+\usepackage[noend]{algpseudocode}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{cancel}
+% Alter some LaTeX defaults for better treatment of figures:
+    % See p.105 of "TeX Unbound" for suggested values.
+    % See pp. 199-200 of Lamport's "LaTeX" book for details.
+    %   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.9}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.8}	% max fraction of floats at bottom
+    %   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \setcounter{dbltopnumber}{2}    % for 2-column pages
+    \renewcommand{\dbltopfraction}{0.9}	% fit big float above 2-col. text
+    \renewcommand{\textfraction}{0.07}	% allow minimal text w. figs
+    %   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.7}	% require fuller float pages
+	% N.B.: floatpagefraction MUST be less than topfraction !!
+    \renewcommand{\dblfloatpagefraction}{0.7}	% require fuller float pages
+
+	% remember to use [htp] or [htpb] for placement
+
+
+\setlength\titlebox{6.5cm}    % Expanding the titlebox
+
+
+\renewcommand{\tabcolsep}{5pt}
+
+\newcommand{\baseacc}{00.00\xspace}
+\newcommand{\sysacc}{00.00\xspace}
+\newcommand{\sysimprove}{00.00\xspace}
+\newcommand{\las}{\textsc{las}\xspace}
+\newcommand{\uas}{\textsc{uas}\xspace}
+\newcommand{\pp}{\textsc{pp}\xspace}
+\newcommand{\pos}{\textsc{pos}\xspace}
+\newcommand{\wsj}{\textsc{wsj}\xspace}
+\newcommand{\edittrans}{\textsc{edit}\xspace}
+
+\newcommand{\stacktop}{S$_0$\xspace}
+\newcommand{\buffone}{N$_0$\xspace}
+
+\newcommand{\tuple}[1]{$\langle#1\rangle$}
+\newcommand{\maybe}[1]{\textcolor{gray}{#1}}
+\newcommand{\note}[1]{\textcolor{red}{#1}}
+\newcommand{\state}{\mathcal{S}}
+\newcommand{\nmae}{\textsc{nmae}\xspace}
+\newcommand{\pcfg}{\textsc{pcfg}\xspace}
+
+\title{Joint incremental disfluency detection and dependency parsing}
+
+\author{
+	Anonymous\\
+  	Department\\
+  	Institution\\
+  	Address\\
+  {\tt \small email }\\
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+
+    We present the first joint model of dependency parsing and
+    disfluency detection. A standard incremental beam-search model
+    proves well suited to the task, achieving much better parsing and disfluency
+    detection scores than previous joint \pcfg models.
+
+We then improve the model further, by introducing features targetting disfluency
+detection, and a novel non-monotonic transition system designed for speech repairs.
+Our final model achieves 83\% disfluency $F$-measure; comparable to the current
+state-of-the-art and better than previous incremental models.
+
+\end{abstract}
+
+% P1
+\section{Introduction}
+
+Most unscripted speech contains filled pauses (ums and uhs) and errors which are
+usually edited on-the-fly by the speaker. Disfluency detection is the task of
+marking these infelicities in spoken language transcripts. The task has some
+immediate value, as disfluencies have been shown to make speech recognition output
+much more difficult to read \citep{jones:03}, but has also been motivated as
+a module in a natural language understanding pipeline, because disfluencies have
+proven problematic for \pcfg parsing models.
+
+One reason for this difficulty could be the effect of disfluencies on the size
+of the grammar that the parser has to learn: even though only 5\% of the tokens
+in the Switchboard treebank \citep{marcus:93} are disfluent, they increase
+the number of production rules in the corpus by over 50\%.\footnote{With
+no nodes labelled \textsc{edted}, \textsc{uh} or \textsc{prn}, there are
+2,570 unique productions in sections 2 and 3 of Switchboard. With them,
+there are 19,015. Punctuation and metadata nodes were removed before both counts.}
+
+%The underlying problem may be that a \pcfg model incorporates assumptions that
+%seem a poor fit for learning disfluent sentences, which are examples of linguistic
+%performance, rather than linguistic competence.
+
+Instead of a pipeline approach, we adopt a different type of parsing model,
+incremental dependency parsing,
+which does not rely on a grammar and makes fewer linguistic assumptions.
+The only previous work on dependency parsing of speech that we are aware of
+is from \citet{jorgensen:07}, who ran the \textsc{malt} parser on the Switchboard
+corpus. Since then, dependency parsers have improved in accuracy substantially,
+and now rival the best \pcfg models.
+%\footnote{The parsers described by
+%\citet{zhang:11} and \citet{Charniak05a} both recover unlabelled Stanford basic
+%dependencies with about 93.5\% accuracy on the Wall Street Journal.}
+
+Our first experiment is to apply a state-of-the-art incremental dependency parser
+`out-of-the-box', with disfluencies simply marked by giving them a distinct
+dependency label. A standard beam-search structured perceptron parser
+\citep{zhang:cl11,zhang:11} recovered unlabelled dependencies between fluent words
+with TODO\% accuracy, and detected disfluencies with 70\% $F$-measure.
+We then describe methods of customising the feature set and transition system
+of the parser to deal with disfluencies, which together improve these scores
+substantially.
+
+Our disfluency features were designed to capture the
+`rough copy' structure of some speech repairs, which motivates the
+\citet{Johnson04a} noisy channel model.  These features improve disfluency
+$F$-measure to 79\%, similar to the noisy channel model.  The ease with which
+incremental dependency parsers can incorporate arbitrary features is one of
+their principal advantages.
+
+The second improvement is a novel non-monotonic extension to the transition
+system. It allows the parser to create temporary edges, in order to deal with
+speech repairs where the head of an apparent constituent is disfluent, but some
+of its apparent leftward children are not.
+
+The joint system achieves competitive accuracy at both disfluency detection and
+parsing. It also has other important advantages:
+
+\begin{itemize}
+    \item Because the parser is incremental, it does not require sentence segmentation
+        as a pre-process. Segmenting spoken utterances is a difficult unsolved
+        problem, that will probably benefit from syntactic information. Our parser
+        is the first to make this possible.
+
+    \item The system is also quite efficient, processing 488 tokens per second.
+        Little work has been done on making disfluency detection systems efficient,
+        which has greatly limited their use. Previous models have required either
+        large ngram language models \citep{zwarts:11}, a \pcfg syntactic language
+        model \citep{Johnson04a}, or several passes over the data \citep{qian:13}.
+
+    \item Finally, by casting the problem of disfluency detection as a minimally
+           different dependency parsing task, our system will be able to exploit
+           future improvements to incremental dependency parsing —-- an area of
+           research that is currently very active.
+\end{itemize}
+
+\section{Background}
+
+\subsection{Speech disfluencies}
+
+\subsection{Transition-based dependency parsing}
+
+Our parsing model is adapted from \citet{zhang:cl11}, who use beam-search guided
+by a global (`structured') averaged perceptron model \citep{collins:02}.
+
+Briefly, the transition-based parser consists of a state (sometimes termed a
+configuration) which is sequentially manipulated by actions chosen from a set
+termed the transition system. We use the arc-eager transition system
+\citep{nivre:03,nivre:cl}.
+
+We use a notation in which the stack items are indicated by S$i$, with S0 being
+the top of the stack, S1 the item previous to it and so on. Similarly, buffer
+items are indicated as N$i$, with N0 being the first item on the buffer. The arcs
+are of the form ($h$, $l$, $m$), indicating a dependency in which the word m modifies
+the word $h$ with label $l$.
+
+In the initial configuration the stack is empty, and the buffer contains the words
+of the sentence followed by an artificial \textsc{root} token, as suggested by
+\citet{nivre:squib}.
+In the final configuration the buffer is empty and the stack contains the 
+\textsc{root} token. The set of arcs in the final configuration is the parse tree.
+
+There are four parsing actions (\textbf{S}hift, \textbf{L}eft-Arc,
+\textbf{R}ight-Arc and Re\textbf{d}uce, abbreviated as S,L,R,D respectively)
+that manipulate stack and buffer items. The Shift action pops the first item
+from the buffer and pushes it on the stack (the Shift action has a natural
+precondition that the buffer is not empty, as well as a precondition that
+\textsc{root} can only be pushed to an empty stack). The Right-Arc action is
+similar to the Shift action, but it also adds a dependency arc (S0, N0),
+with the current top of the stack as the head of the newly pushed item (the Right
+action has an additional precondition that the stack is not empty). The Left-Arc
+action adds a dependency arc (N0, S0) with the first item in the buffer as the
+head of the top of the stack, and pops the stack (with a precondition that the
+stack and buffer are not empty, and that S0 is not assigned a head yet). Finally,
+the Reduce action pops the stack, with a precondition that the stack is not empty
+and that S0 is already assigned a head.
+
+\subsection{Dynamic oracle training}
+
+An essential component when training a transition-based parser is an oracle which,
+given a gold-standard tree, dictates the sequence of moves a parser should make
+in order to derive it. Traditionally, these oracles are defined as functions from
+trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
+even if more than one sequence of actions derives the gold tree. During training,
+the model encounters a loss if its prediction departs from this single gold-standard
+sequence, even if its prediction could be along an alternate path to a gold-standard tree.
+
+The oracle that \citep{goldberg:12} define, which they term a \emph{dynamic} oracle,
+instead calculates how many gold-standard arcs will be newly unreachable after a
+given action has been performed on the parser’s current configuration. This allows
+the model to be trained with a loss function that refers to the dependency structure,
+instead of the transition history.
+
+In the context of a greedy parser, the biggest ad- vantage is that the `static'
+oracle can only label states along the path to the gold-standard derivation.
+This meant that states encountered at run- time diverged from those seen during
+training, once the parser made a mistake. Beam-search parsers have never suffered
+from that problem, and so the idea has not yet been applied to training a beam-search
+parser.
+
+The dynamic oracle is important for this work because it allows us to under-specify
+some of the parse structure —-- specifically, the structure surrounding disfluencies.
+One motivation is that we suspect the gold-standard parses for disfluent regions
+to be noisy, especially once run through the dependency converter. Since we do
+not have a use for this structure, and it is likely to be inconsistent with the
+rest of the grammar, it makes sense to not try to learn it. The other motivation
+is described in Section \ref{sec:edit_trans}. We argue that for examples like
+\emph{a red square uh rectangle}, it is useful to allow the parser to create arcs
+from disfluent words to fluent ones, which will later be deleted. The new
+transition introduces substantial spurious ambiguity, as the transition system
+is no longer monotonic, so a dynamic oracle is required for training.
+
+\section{Dependency conversion}
+
+We train our parser on the Switchboard section of the Penn Treebank \citep{marcus:93},
+using the 2013-04-05 version of the Stanford dependency converter \citep{stanford_deps}.
+At first we feared that the filled pauses, disfluencies and meta-data tokens in
+the Switchboard corpus might disrupt the conversion process, by making it more
+difficult for the converter to recognise the underlying production rules.
+
+To test this, we prepared two versions of the cor- pus, both with oracle pre-processing:
+one where \textsc{edited} nodes, filled pauses and meta-data were cleaned before
+the trees were sent through the Stanford converter, and one where the disfluency
+cleaning was performed after the dependency conversion. The resulting corpora
+were largely identical: 99.54\% of unlabelled and 98.7\% of labelled dependencies
+were the same.
+
+The fact that the Stanford converter is robust to the disfluencies is good news
+for our baseline model. In our \textsc{edit} model, the structure of disfluent
+constituents is under-specified; but for the baseline model, we use the structure
+output by the Stanford converter.
+
+We follow previous work on disfluency detection in lower-casing the text and
+removing punctuation and unrecognisable words. We also filter out one- and two-token
+sentences.
+
+\section{Features for the joint parser}
+
+Our baseline parser uses the feature set described by \citet{zhang:11}.
+To describe the features, we use the following notation. First, we name the
+12 context tokens shown in Figure ??. These are the word on top of the stack, its
+left and right subtree, its parent and its grandparent; the first word of the buffer
+and its leftward subtree (it cannot have a rightward subtree); and the next two
+tokens of the buffer (these also cannot have subtrees or parents).
+
+Atomic features consist of the word, part-of- speech tag, or dependency label
+for these tokens, and feature templates often consist of multiple fea- ture atoms
+in combination. We refer the reader to \citet{zhang:11} for the specific feature
+templates used.
+
+\section{A non-monotonic Edit transition}
+
+One of the reasons that joint disfluency detection and parsing is hard is due to
+what ? terms helical dependency structures. Figure ?? shows a simple example.
+The repair square replaces the reparan- dum5 rectangle, and must be attached to
+the rest of the fluent sentence.
+
+The problematic dependencies, shown in dotted lines, are between `rectangle'
+and `a' and `red'. These arcs are not exactly correct, as we do not want them in
+a final projective tree, but they are also not exactly incorrect, in the way that
+an arc from `a' to `pass' or `me' would be.
+
+For a transition-based model, learning to avoid these arcs is very difficult.
+Unless the interruption point is within the look-ahead into the buffer, the
+incremental model cannot guess that ‘rect- angle’ will later prove disfluent,
+so trying to learn disfluency-specific behaviour at this point seems a bad strategy.
+What we want instead is for the parser to apply whatever it has learned about English
+grammar to this decision, and later arrive at a state that is inconsistent with
+that grammar, forcing it to mark rectangle as disfluent.
+
+We achieve this by adding a new transition, \edittrans, to the arc-eager system.
+The \edittrans transition marks the top word of the stack and its rightward subtree
+as disfluent, but returns its leftward children to the stack, and deletes a
+dependency to it if one exists.
+
+Figure ?? shows a before-and-after example. In the configuration above, rectangle
+is on top of the stack (indicated by circling the word). After the \textsc{edit}
+transition, it is marked as disfluent (crossed), the arc to it is deleted, and its
+leftward children (empha and red) are restored to the stack. The substructures
+of these children are not rebuilt —-- we do not delete the arc from bright to red,
+or restore bright to the stack.
+
+Why revisit the leftward children, but not the right? The logic here is that we are
+concerned about dependencies which might be ‘mirrored’ be- tween the reparandum
+and the repair. The rightward subtree of the disfluency might well be incorrect,
+but if it is, it would still be incorrect if the word on top of the stack weren’t
+disfluent —-- so we regard these as parsing errors that we will train our model
+to avoid. In contrast, avoiding the left- ward arcs would require the parser to
+predict that the head is disfluent, when it has not necessarily seen any evidence
+indicating that.
+
+The EDIT transition makes the transition system non-monotonic, in the terms of ?,
+who showed that a greedy arc-eager parser became more accurate when given a limited
+ability to correct for incorrect transitions. We use a beam-search parser, which
+is well equipped to correct for the cases which the non-monoticity they introduce
+helps with. We therefore restrict our parser’s non-monotonic behaviour to the
+EDIT transition.
+
+The \edittrans transition introduces substantial spurious ambiguity: there are multiple
+transition sequences that could yield the gold-standard dependencies. We therefore
+adopt the `dynamic oracle' training method of \citet{goldberg:12} described in
+Section 3.1.
+
+\subsection{Dynamic oracle training with beam search}
+
+\subsection{Path length normalisation}
+
+\subsection{Motivating example}
+
+\begin{figure*}
+    \small
+    \centering
+    \begin{tabular}{llc}
+    % 1 R
+        1 & $\langle R \rangle $ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& $\|$ the \& \emph{monthly} \& \emph{salary} \& starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \hfill \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        \wordgroup{1}{3}{3}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+    \end{dependency}\\[-2.0ex]
+    % 2 SS
+    2 & $\langle DSS \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+
+            I \& noticed \& that \& the \& \emph{monthly} \& $\|$ \emph{salary} \& starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \hfill \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        \wordgroup{1}{4}{4}{}
+        \wordgroup{1}{5}{5}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    % 3 LL
+    3 & $\langle LL \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \emph{monthly} \& $\|$ \emph{salary} \& starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        %\wordgroup{1}{4}{4}{}
+        %\wordgroup{1}{5}{5}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+        \depedge{6}{5}{}
+        \depedge{6}{4}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    % 4 R
+4 & $\langle R \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \emph{monthly} \& \emph{salary} \& $\|$ starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        %\wordgroup{1}{4}{4}{}
+        %\wordgroup{1}{5}{5}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+        \depedge{6}{5}{}
+        \depedge[edge unit distance=0.9ex]{6}{4}{}
+
+        \depedge[edge unit distance=0.3ex, edge below]{2}{6}{}
+        \wordgroup{1}{6}{6}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    % 5 SSSLLL
+5 & $\langle SSSLLL \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \emph{monthly} \& \emph{salary} \& starting \& average \& monthly \& $\|$ \emph{salary} \& salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        %\wordgroup{1}{4}{4}{}
+        %\wordgroup{1}{5}{5}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+        \depedge{6}{5}{}
+        \depedge[edge unit distance=0.9ex]{6}{4}{}
+
+        \depedge[edge unit distance=0.3ex, edge below]{2}{6}{}
+        \wordgroup{1}{6}{6}{}
+
+        \depedge[edge unit distance=0.9ex]{10}{9}{}
+        \depedge[edge unit distance=0.8ex]{10}{8}{}
+        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
+    \end{dependency}\\[-2.0ex]
+    % 6 E
+    6 & $\langle \textbf{E} \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \emph{monthly} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& $\|$ \emph{salary} \& salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        \wordgroup{1}{4}{4}{}
+        \wordgroup{1}{5}{5}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+
+        \depedge[edge unit distance=0.9ex]{10}{9}{}
+        \depedge[edge unit distance=0.8ex]{10}{8}{}
+        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    % 7 E
+ 7 & $\langle \textbf{E} \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& $\|$ \emph{salary} \& salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        \wordgroup{1}{4}{4}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+
+        \depedge[edge unit distance=0.9ex]{10}{9}{}
+        \depedge[edge unit distance=0.8ex]{10}{8}{}
+        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    % 8 LS
+ 8 & $\langle LS \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& \emph{salary} \& $\|$ salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        %\wordgroup{1}{4}{4}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+
+        \depedge[edge unit distance=0.9ex]{10}{9}{}
+        \depedge[edge unit distance=0.8ex]{10}{8}{}
+        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
+        \depedge[edge below, edge unit distance=0.3ex]{10}{4}{}
+        \wordgroup{1}{10}{10}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    % 9 E
+    9 & $\langle \textbf{E} \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& \cancel{\emph{salary}} \& $\|$ salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        \wordgroup{1}{4}{4}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+
+        \wordgroup{1}{7}{7}{}
+        \wordgroup{1}{8}{8}{}
+        \wordgroup{1}{9}{9}{}
+        %\depedge[edge unit distance=0.9ex]{10}{9}{}
+        %\depedge[edge unit distance=0.8ex]{10}{8}{}
+        %\depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
+        %\depedge[edge below, edge unit distance=0.3ex]{10}{4}{}
+        %\wordgroup{1}{10}{10}{}
+    \end{dependency}\\[-2.0ex]
+     10 &    & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+        \begin{deptext}[column sep=.075cm, row sep=.1ex]
+            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& \cancel{\emph{salary}} \& $\|$ salary \& for \& engineers \\
+        \end{deptext}
+        \wordgroup{1}{2}{2}{}
+        \depedge{2}{1}{}
+        \depedge{2}{3}{}
+
+        \depedge[edge unit distance=0.9ex]{11}{9}{}
+        \depedge[edge unit distance=0.8ex]{11}{8}{}
+        \depedge[edge below, edge unit distance=0.3ex]{11}{7}{}
+        \depedge[edge below, edge unit distance=0.3ex]{11}{4}{}
+        \depedge[edge unit distance=0.3ex]{2}{11}{}
+        \depedge{11}{12}{}
+        \depedge{12}{13}{}
+        %\wordgroup{1}{10}{10}{}
+    \end{dependency}\\[-2.0ex]
+ 
+    \end{tabular}
+    \caption{\small Example from the development data where the Edit transition improves accuracy. Words on the stack are shown circled, while words marked disfluent with the Edit transition are struck-through. The start of the buffer is marked with $\|$}.
+\end{figure*}
+
+Figure 2 shows part of a sentence from the devel- opment data that contains several
+difficult disfluencies, of the type the Edit transition is designed to address.
+Each numbered line shows a state along the final path predicted by the parser.
+The actions performed to transform the previous state into the current one are
+listed in angle brackets. Words on the stack are circled, and dependencies are
+shown as arcs from the head to the child. The $\|$ symbol shows where the buffer
+begins.
+
+Line 1 shows a state resulting resulting from a Right-Arc (R) from noticed to that.
+Previously, the parser had performed a Left-Arc from noticed to I, which is no
+longer on the stack. The itali- cised words in the buffer are disfluent, and will
+be deleted using the \edittrans transition. Deletions will be marked by strike-through.
+
+Line 2 shows the state after the Shift move (S)
+move has pushed the and monthly onto the stack. It would be correct to apply the
+Edit transition to this configuration, but that is only one of several moves that
+the dynamic oracle (Sections ??) would assign zero-cost during training.
+
+The model selects a different zero-cost action, Left-Arc, which pops monthly and
+attaches it to salary. The parser then performs another Left- Arc, attaching the
+fluent word the to the disfluent word salary, resulting in the state at Line 3.
+
+The critical difference between the EDIT model and the baseline is that this type
+of arc is also zero- cost in the EDIT model, because we will later put the back
+onto the stack. Our argument is that from the configuration in Line 2, the Left-Arcs
+are the natural choice, and a loss-function that penalises this move will be
+unlearnable. The state resulting from these two actions is shown in Line 3.
+
+The parser’s next action is a Right-Arc from the fluent noticed to the disfluent
+\emph{salary}, pushing salary onto the stack. This action is also zero-cost,
+even though it creates an erroneous arc, because we’ll later have the chance to
+delete the arc via the EDIT transition. The parser then performs a series of
+Shift and Left-Arc moves, attaching the fluent tokens starting, monthly and
+average to the sec- ond disfluent salary token. These arcs are all also zero-cost,
+and are further examples of the type of arc that motivates the \edittrans transition.
+
+The parser is now (Line 4) in a state from which it can confidently predict that
+the salary token on top of the stack is disfluent, as there is a matching word at
+the start of the buffer that isn’t one of the small set of words that are often
+repeated in the training data. The word-match features will also find a match
+between the tokens S0L0 and N0L0 (first left child of S0 and first left child
+of N0).
+
+Line 5 shows the state that results from the \edittrans transition. It marks salary as
+disfluent, deletes all arcs to and from it, pops it from the stack, and restores
+its leftward children to the stack — in this case, monthly. The parser’s next
+action is to mark monthly as disfluent. A Left-Arc, Shift, or even Right-Arc
+would all have been zero-cost from this state, because the word on top of the
+stack and the word at the start of the buffer are both disfluent. Instead, the
+word-match between S0 and N0L0, combined with the fact that the token after S0
+was marked disfluent, leads the parser to mark monthly as also disfluent.
+
+The parser next applies the Left-Arc transition from the disfluent salary to the
+fluent the, again at zero-cost, even though the arc is incorrect. The Shift move
+then puts the parser in the state shown on Line 7: the disfluent salary is at
+the top of the stack, with several fluent words as leftward chil- dren, and its
+repair is at the start of the buffer. The word-match feature between S0 and N0
+fires, encouraging the parser to select the EDIT transition, which restores the,
+starting, average and monthly to the stack, resulting in the state on Line 9.
+
+Having successfully marked the disfluencies, the parser performs a series of
+Left-Arcs, before correctly attaching salary to noticed via the Right- Arc,
+and happens to correctly attach the preposi- tional phrase as well.
+
+
+
+
+
+\section{Parsing model}
+
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{The Arc-Eager Transition System}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{Structured average perceptron}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{Beam search}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{Features}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{Additional features for disfluent speech}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Baseline models}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+
+\subsection{Additional features for disfluent speech}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Data Preparation}
+
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{Labelling interruption points}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\subsection{Retokenising multi-word expressions}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Evaluation method}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Experiments}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Results}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Analysis}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+
+\section{Related Work}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\section{Conclusion}
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+
+\bibliography{main}
+\bibliographystyle{aclnat}
+
+\end{document}
