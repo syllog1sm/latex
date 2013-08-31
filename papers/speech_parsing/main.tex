@@ -60,6 +60,28 @@
 \newcommand{\nmae}{\textsc{nmae}\xspace}
 \newcommand{\pcfg}{\textsc{pcfg}\xspace}
 
+\newcommand{\szero}{S0\xspace}
+\newcommand{\nzero}{N0\xspace}
+
+\newcommand{\szeroh}{S0$_h$\xspace}
+\newcommand{\szerohh}{S0$_{h2}$\xspace}
+\newcommand{\szeroL}{S0$_L$\xspace}
+\newcommand{\szeroLL}{S0$_{L2}$\xspace}
+\newcommand{\szeroR}{S0$_R$\xspace}
+\newcommand{\szeroRR}{S0$_{R2}$\xspace}
+\newcommand{\szeroLzero}{S0$_{L0}$\xspace}
+\newcommand{\szeroRzero}{S0$_{R0}$\xspace}
+
+\newcommand{\nzeroL}{N0$_L$\xspace}
+\newcommand{\nzeroLL}{N0$_{LL}$\xspace}
+\newcommand{\nzeroLzero}{N0$_{L0}$\xspace}
+
+\newcommand{\szeroRedge}{S0$_{re}$\xspace}
+\newcommand{\szeroLedge}{S0$_{le}$\xspace}
+\newcommand{\nzeroLedge}{N0$_{le}$\xspace}
+
+\newcommand{\sparseval}{\textsc{sparseval}\xspace}
+
 \title{Joint incremental disfluency detection and dependency parsing}
 
 \author{
@@ -83,7 +105,7 @@
 
 We then improve the model further, by introducing features targetting disfluency
 detection, and a novel non-monotonic transition system designed for speech repairs.
-Our final model achieves 83\% disfluency $F$-measure; comparable to the current
+Our final model achieves TODO\% disfluency $F$-measure; comparable to the current
 state-of-the-art and better than previous incremental models.
 
 \end{abstract}
@@ -105,7 +127,7 @@ in the Switchboard treebank \citep{marcus:93} are disfluent, they increase
 the number of production rules in the corpus by over 50\%.\footnote{With
 no nodes labelled \textsc{edted}, \textsc{uh} or \textsc{prn}, there are
 2,570 unique productions in sections 2 and 3 of Switchboard. With them,
-there are 19,015. Punctuation and metadata nodes were removed before both counts.}
+there are 19,015. Punctuation and metadata tokens were removed before both counts.}
 
 %The underlying problem may be that a \pcfg model incorporates assumptions that
 %seem a poor fit for learning disfluent sentences, which are examples of linguistic
@@ -125,8 +147,8 @@ and now rival the best \pcfg models.
 Our first experiment is to apply a state-of-the-art incremental dependency parser
 `out-of-the-box', with disfluencies simply marked by giving them a distinct
 dependency label. A standard beam-search structured perceptron parser
-\citep{zhang:cl11,zhang:11} recovered unlabelled dependencies between fluent words
-with TODO\% accuracy, and detected disfluencies with 70\% $F$-measure.
+\citep{zhang:cl11,zhang:11} predicted the heads of fluent words
+with 89.7\% accuracy, and detected disfluencies with 75.5\% $F$-measure.
 We then describe methods of customising the feature set and transition system
 of the parser to deal with disfluencies, which together improve these scores
 substantially.
@@ -134,7 +156,7 @@ substantially.
 Our disfluency features were designed to capture the
 `rough copy' structure of some speech repairs, which motivates the
 \citet{Johnson04a} noisy channel model.  These features improve disfluency
-$F$-measure to 79\%, similar to the noisy channel model.  The ease with which
+$F$-measure to 81.1\%.  The ease with which
 incremental dependency parsers can incorporate arbitrary features is one of
 their principal advantages.
 
@@ -164,14 +186,83 @@ parsing. It also has other important advantages:
            research that is currently very active.
 \end{itemize}
 
-\section{Background}
+\section{Switchboard disfluency annotations}
 
-\subsection{Speech disfluencies}
+The Switchboard portion of the Penn Treebank \citep{marcus:93} consists of
+telephone conversations between strangers about
+an assigned topic.  Two annotation layers are provided: one for syntactic
+bracketing (\textsc{mrg} files),
+and one for disfluencies (\textsc{dps} files).  The disfluency layer marks
+elements with little or no syntactic function, such as filled pauses and discourse
+markers, and annotates speech repairs using the \citet{shriberg:94} system of
+reparandum/interregnum/repair.
+The main way the \textsc{mrg} files mark disfluencies is with a node labelled
+\textsc{edited}.  The idea behind this annotation is to mark text which, if
+excised, will lead to a grammatical sentence.
 
-\subsection{Transition-based dependency parsing}
+%The \textsc{dps} reparandum/interregnum/repair boundaries are represented in the
+%\textsc{mrg} files using meta-data tokens.  However, there is an additional
+%complication: the two layers are segmented differently, so if the treebank
+%sentences are assumed to be independent of each other, the
+%reparandum/interregnum/repair annotations in them do not always make sense.
 
-Our parsing model is adapted from \citet{zhang:cl11}, who use beam-search guided
-by a global (`structured') averaged perceptron model \citep{collins:02}.
+The two layers have high but imperfect agreement over
+what tokens they mark disfluent: the \textsc{dps} files call
+32,310 tokens speech repairs, while 32,742 are marked disfluent in the treebank,
+with 33,720 tokens marked disfluent in at least one layer.
+
+\subsection{Dependency conversion}
+
+As is standard in recent statistical dependency parsing work, we acquire our
+gold-standard dependencies by converting phrase-structure trees.
+We used the 2013-04-05 version of the Stanford dependency converter \citep{stanford_deps}.
+At first we feared that the filled pauses, disfluencies and meta-data tokens in
+the Switchboard corpus might disrupt the conversion process, by making it more
+difficult for the converter to recognise the underlying production rules.
+
+To test this, we prepared two versions of the corpus, both with oracle pre-processing:
+one where \textsc{edited} nodes, filled pauses and meta-data were cleaned before
+the trees were sent through the Stanford converter, and one where the disfluency
+cleaning was performed after the dependency conversion. The resulting corpora
+were largely identical: 99.54\% of unlabelled and 98.7\% of labelled dependencies
+were the same.
+
+The fact that the Stanford converter is robust to the disfluencies is good news
+for our baseline model. In our \textsc{edit} model, the structure of disfluent
+constituents is under-specified; but for the baseline model, we use the structure
+output by the Stanford converter.
+
+We follow previous work on disfluency detection in lower-casing the text and
+removing punctuation and partial words\textsc{Words tagged XX and words ending in
+`'.}.  We also filter out one- and two-token sentences.
+
+We found that two additional simple pre-processes improved our results:
+
+\begin{enumerate}
+    \item Discard all `um' and `uh' tokens;
+    \item Merge `you know' and `i mean' into single tokens.
+\end{enumerate}
+
+These pre-processes can be completed on the input string without losing information:
+none of the `um' or `uh' tokens are semantically significant, and
+the bigrams \emph{you know} and \emph{you mean} have a dependency between the two
+tokens over 99.9\% of the times they occur in the treebank. We found that `um'
+and `uh' were not useful clues about when speakers might become disfluent, and
+we doubted that there was any utility in predicting a syntactic head for them.
+More nuanced handling of speech-specific multi-word expressions seems an interesting
+topic for future work.
+
+\section{Transition-based dependency parsing}
+
+A transition-based parser predicts the syntactic structure of a sentence incrementally,
+by making a sequence of classification decisions.  We follow the architecture of
+\citet{zhang:cl11}, who use beam-search for decoding, and the averaged
+perceptron algorithm for learning.  Despite its simplicity, this type of parser
+has produced highly competitive results on the Wall Street Journal: with the
+extended feature set described by \citet{zhang:11}, the parser achieves 93.5\%
+unlabelled attachment score on Stanford basic dependencies.  The \citet{Charniak05a}
+reranking parser produces similar accuracy when its constituency trees are post-processed
+by the Stanford dependency converter.
 
 Briefly, the transition-based parser consists of a state (sometimes termed a
 configuration) which is sequentially manipulated by actions chosen from a set
@@ -180,15 +271,13 @@ termed the transition system. We use the arc-eager transition system
 
 We use a notation in which the stack items are indicated by S$i$, with S0 being
 the top of the stack, S1 the item previous to it and so on. Similarly, buffer
-items are indicated as N$i$, with N0 being the first item on the buffer. The arcs
-are of the form ($h$, $l$, $m$), indicating a dependency in which the word m modifies
-the word $h$ with label $l$.
-
+items are indicated as N$i$, with N0 being the first item on the buffer.
 In the initial configuration the stack is empty, and the buffer contains the words
 of the sentence followed by an artificial \textsc{root} token, as suggested by
 \citet{nivre:squib}.
 In the final configuration the buffer is empty and the stack contains the 
-\textsc{root} token. The set of arcs in the final configuration is the parse tree.
+\textsc{root} token.
+%The set of arcs in the final configuration is the parse tree.
 
 There are four parsing actions (\textbf{S}hift, \textbf{L}eft-Arc,
 \textbf{R}ight-Arc and Re\textbf{d}uce, abbreviated as S,L,R,D respectively)
@@ -205,65 +294,6 @@ stack and buffer are not empty, and that S0 is not assigned a head yet). Finally
 the Reduce action pops the stack, with a precondition that the stack is not empty
 and that S0 is already assigned a head.
 
-\subsection{Dynamic oracle training}
-
-An essential component when training a transition-based parser is an oracle which,
-given a gold-standard tree, dictates the sequence of moves a parser should make
-in order to derive it. Traditionally, these oracles are defined as functions from
-trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
-even if more than one sequence of actions derives the gold tree. During training,
-the model encounters a loss if its prediction departs from this single gold-standard
-sequence, even if its prediction could be along an alternate path to a gold-standard tree.
-
-The oracle that \citep{goldberg:12} define, which they term a \emph{dynamic} oracle,
-instead calculates how many gold-standard arcs will be newly unreachable after a
-given action has been performed on the parser’s current configuration. This allows
-the model to be trained with a loss function that refers to the dependency structure,
-instead of the transition history.
-
-In the context of a greedy parser, the biggest ad- vantage is that the `static'
-oracle can only label states along the path to the gold-standard derivation.
-This meant that states encountered at run- time diverged from those seen during
-training, once the parser made a mistake. Beam-search parsers have never suffered
-from that problem, and so the idea has not yet been applied to training a beam-search
-parser.
-
-The dynamic oracle is important for this work because it allows us to under-specify
-some of the parse structure —-- specifically, the structure surrounding disfluencies.
-One motivation is that we suspect the gold-standard parses for disfluent regions
-to be noisy, especially once run through the dependency converter. Since we do
-not have a use for this structure, and it is likely to be inconsistent with the
-rest of the grammar, it makes sense to not try to learn it. The other motivation
-is described in Section \ref{sec:edit_trans}. We argue that for examples like
-\emph{a red square uh rectangle}, it is useful to allow the parser to create arcs
-from disfluent words to fluent ones, which will later be deleted. The new
-transition introduces substantial spurious ambiguity, as the transition system
-is no longer monotonic, so a dynamic oracle is required for training.
-
-\section{Dependency conversion}
-
-We train our parser on the Switchboard section of the Penn Treebank \citep{marcus:93},
-using the 2013-04-05 version of the Stanford dependency converter \citep{stanford_deps}.
-At first we feared that the filled pauses, disfluencies and meta-data tokens in
-the Switchboard corpus might disrupt the conversion process, by making it more
-difficult for the converter to recognise the underlying production rules.
-
-To test this, we prepared two versions of the cor- pus, both with oracle pre-processing:
-one where \textsc{edited} nodes, filled pauses and meta-data were cleaned before
-the trees were sent through the Stanford converter, and one where the disfluency
-cleaning was performed after the dependency conversion. The resulting corpora
-were largely identical: 99.54\% of unlabelled and 98.7\% of labelled dependencies
-were the same.
-
-The fact that the Stanford converter is robust to the disfluencies is good news
-for our baseline model. In our \textsc{edit} model, the structure of disfluent
-constituents is under-specified; but for the baseline model, we use the structure
-output by the Stanford converter.
-
-We follow previous work on disfluency detection in lower-casing the text and
-removing punctuation and unrecognisable words. We also filter out one- and two-token
-sentences.
-
 \section{Features for the joint parser}
 
 Our baseline parser uses the feature set described by \citet{zhang:11}.
@@ -271,12 +301,119 @@ To describe the features, we use the following notation. First, we name the
 12 context tokens shown in Figure ??. These are the word on top of the stack, its
 left and right subtree, its parent and its grandparent; the first word of the buffer
 and its leftward subtree (it cannot have a rightward subtree); and the next two
-tokens of the buffer (these also cannot have subtrees or parents).
+tokens of the buffer (these cannot have subtrees or parents).
 
 Atomic features consist of the word, part-of- speech tag, or dependency label
 for these tokens, and feature templates often consist of multiple fea- ture atoms
 in combination. We refer the reader to \citet{zhang:11} for the specific feature
 templates used.
+
+\subsection{Brown cluster features}
+
+The Brown clustering algorithm \citep{clustering} provides a well known source
+of semi-supervised features. The clustering algorithm is run over a large sample
+of unlabelled data, to generate a type-to-cluster map. This mapping is then used
+to generate features that sometimes generalise better than lexical features
+\citet{turian}.
+
+\citet{koo:10} found that Brown cluster features greatly improved the performance
+of a graph-based dependency parser. On our transition-based parser, Brown cluster
+features bring a small but statistically significant improvement on the \textsc{wsj}
+task (0.1-0.3\% \textsc{uas}).  Other developers of transition-based parsers
+seem to have found similar results (personal communication).
+
+Since the Brown cluster type-mapping computed by \citet{turian:10} is easily
+available\footnote{\url{www.metaoptimize.com}}, the features are very simple
+to implement and cheap to compute, so we see little reason not to include them
+in the parser.
+
+Our templates follow \citet{koo:10} in including features for full clusters as
+well as cluster prefixes. We adapt their templates to transition-based parsing
+by replacing `head' with `item on top of the stack' and `child' with `first word
+of the buffer'. The exact templates can be found in the supplementary material.
+
+\subsection{Rough copy features}
+
+\citet{Johnson04a} point out that in speech repairs, the repair is often a rough
+copy of the reparandum.  The simplest case of this is where the repair is a single
+word repetition. In more complex cases, some of the wording or grammatical
+structure will be the same, and the rest will be different.
+
+To capture this regularity, we first extend the feature-set to track three new
+\emph{context tokens}:
+\begin{enumerate}
+    \item \szeroRedge : The rightmost edge of \szero 's yield;
+    \item \szeroLedge : The leftmost edge of \szero 's yield;
+    \item \nzeroLedge : The leftmost edge of \nzero 's yield.
+\end{enumerate}
+
+The \emph{yield} of a word is the span of words headed by it.  If a word has
+no leftward children, it will be its own left-edge, and similarly it will be
+its own rightward edge if it has no rightward children. Note that the token
+\szeroRedge is necessarily immediately before \nzeroLedge, unless some of the
+tokens between them are disfluent.
+
+The yield-edge tokens can be updated during parsing for the word on top of the
+stack and the first word of the buffer.
+It is difficult to ensure that other words
+have their yield-edges marked correctly, but that is not important
+for our features.
+
+The Left-Arc move makes \szero the leftmost child of \nzero. The left yield-edge of
+\nzero is therefore the left yield-edge of \szero. The Right-Arc move makes \nzero
+the rightmost child of \szero. \nzero cannot have a rightward subtree, so it must
+be the rightmost child of \szero.  After a Right-Arc, \nzero will also become
+new rightmost edge of all ancestors of \szero.  When the Reduce move is used,
+we set the right yield-edge of S1 to be the right yield-edge of \szero.
+
+We calculate a simple form of rough-copy feature using the \szeroLedge and
+\nzeroLedge tokens.  The features ask:
+
+\begin{itemize}
+    \item How long is the \emph{prefix word match} between \szeroLedge...\szero
+          and \nzeroLedge...\nzero?
+    \item How long is the \emph{prefix POS tag match} between \szeroLedge...\szero
+          and \nzeroLedge...\nzero?
+    \item Do the words in \szeroLedge...\szero and \nzeroLedge...\nzero match
+          exactly?
+    \item Do the POS tags in \szeroLedge...\szero and \nzeroLedge...\nzero match
+          exactly?
+\end{itemize}
+
+For the prefix-length features, we adopt the simple discretisation strategy of
+introducing a different binary-valued feature for each value up to 5, and another
+bin for 5+.\footnote{We also tried the more nuanced strategy of having a bin for each
+\emph{range} up to 5, so that the bins ask e.g. `Is the prefix \emph{at
+least} two words long?', instead of `Is the prefix \emph{exactly} two words long?'.
+This turned out to make no difference, so we used the simpler scheme.}
+
+\subsection{Match features}
+
+This class of features ask which pairs of the \emph{context tokens} match, in
+word or \pos tag.  The context tokens in the \citet{zhang:11} feature set
+are the top of the stack (\szero), its head and grandparent (\szeroh, \szerohh),
+its two left- and rightmost children (\szeroL, \szeroLL, \szeroR, \szeroRR), the
+first three words of the buffer (\nzero, N1, N2), and the two leftmost children
+of \nzero (\nzeroL, \nzeroLL).
+We extend this set with the \szeroLedge, \szeroRedge and \nzeroLedge tokens
+described above, and also the first left and right child of \szero and \nzero
+(\szeroLzero, \szeroRzero, \nzeroLzero).
+
+All up, there are 18 context tokens, so ${18 \choose 2}~=~153$ token pairs.
+For each pair of these tokens, we add two binary features, indicating whether the
+two tokens match in word form or \pos tag.  We also have two further classes of
+features: if the words do match, a feature is added indicating the word form;
+if the tags match, a feature is added indicating the tag. These finer grained
+versions help the model adjust for the fact that some words can be duplicated
+in grammatical sentences (e.g. `that that'), while most rare words cannot.
+
+\subsection{Edited neighbour features}
+
+Disfluencies are usually
+string contiguous, even if they do not form a single constituent.  We help the
+parser exploit this by adding features asking whether the word or pair of words
+immediately before \nzero were marked disfluent. A similar pair of features is
+added for the word or pair of words immediately after \szero.
 
 \section{A non-monotonic Edit transition}
 
@@ -319,7 +456,8 @@ to avoid. In contrast, avoiding the left- ward arcs would require the parser to
 predict that the head is disfluent, when it has not necessarily seen any evidence
 indicating that.
 
-The EDIT transition makes the transition system non-monotonic, in the terms of ?,
+The EDIT transition makes the transition system non-monotonic, in the terms of
+\citet{goldberg:12},
 who showed that a greedy arc-eager parser became more accurate when given a limited
 ability to correct for incorrect transitions. We use a beam-search parser, which
 is well equipped to correct for the cases which the non-monoticity they introduce
@@ -331,9 +469,6 @@ transition sequences that could yield the gold-standard dependencies. We therefo
 adopt the `dynamic oracle' training method of \citet{goldberg:12} described in
 Section 3.1.
 
-\subsection{Dynamic oracle training with beam search}
-
-\subsection{Path length normalisation}
 
 \subsection{Motivating example}
 
@@ -504,7 +639,7 @@ Section 3.1.
     \caption{\small Example from the development data where the Edit transition improves accuracy. Words on the stack are shown circled, while words marked disfluent with the Edit transition are struck-through. The start of the buffer is marked with $\|$}.
 \end{figure*}
 
-Figure 2 shows part of a sentence from the devel- opment data that contains several
+Figure 2 shows part of a sentence from the development data that contains several
 difficult disfluencies, of the type the Edit transition is designed to address.
 Each numbered line shows a state along the final path predicted by the parser.
 The actions performed to transform the previous state into the current one are
@@ -568,167 +703,299 @@ Having successfully marked the disfluencies, the parser performs a series of
 Left-Arcs, before correctly attaching salary to noticed via the Right- Arc,
 and happens to correctly attach the preposi- tional phrase as well.
 
+\subsection{Dynamic oracle training}
 
+An essential component when training a transition-based parser is an oracle which,
+given a gold-standard tree, dictates the sequence of moves a parser should make
+in order to derive it. Traditionally, these oracles are defined as functions from
+trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
+even if more than one sequence of actions derives the gold tree. During training,
+the model suffers a loss if its prediction departs from this single 
+sequence, even if it lies on an alternate path to the gold-standard tree.
 
+The oracle that \citet{goldberg:12} define, which they term a \emph{dynamic} oracle,
+instead calculates how many gold-standard arcs will be newly unreachable after a
+given action has been performed. This allows the model to be trained with a
+loss function that refers to the dependency structure, instead of the transition
+history.  
 
+Another way to look at this is to say that the derivation structure is left latent,
+instead of being learnt from direct supervision.  
+We therefore adapt the learning
+algorithm of \citet{zettlemoyer:07}, in order to use the dynamic oracle with
+a global model, which has not yet been done.
 
-\section{Parsing model}
+Briefly, \citeauthor{zettlemoyer:07} train a global perceptron model to predict
+lambda calculus representations from sentence strings, with Combinatory
+Categorial Grammar derivations as a latent structure.  Ignoring the parts of
+their algorithm which deal with the lexicon, and generalising a little, the algorithm is:
 
+\begin{enumerate}
+\item Search for the model's best hypothesis given the input.
+\item If the hypothesis satisfies the supervision constraints, move on to the
+      next example.
+\item Otherwise, search again, this time constraining the search to ensure the
+    candidate \emph{will} satisfy the supervision criteria.
+\item Perform a weight update for the model hypothesis and the gold-standard
+      candidate.
+\end{enumerate}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+For us, the supervision constraint is that each action must be zero-cost.  So,
+we first run our beam-search decoder, just as at parse time (Step 1),
+except that we consult the gold-standard dependencies and disfluency information
+to compute a cost for each candidate in the beam, via the dynamic oracle (for Step 2).
+If the top-ranked derivation is zero-cost, we perform no update (Step 2).
+Otherwise, we search again, but
+ensure that no actions with non-zero cost are introduced into the beam (Step 3).
+Our weight update is the standard one, from \citet{collins:02}: count how often
+each feature/class pair occurs in the gold-standard and predicted sequences,
+and update the weights by their difference.
 
-\subsection{The Arc-Eager Transition System}
+Note that neither search process is exact, and in fact we may find a gold-standard
+candidate that scores higher than the predicted candidate, if the gold candidate
+were pruned during search.  If handled naively, this would trigger what \citet{huang:12}
+refer to as an `invalid update'.  The early-update strategy of \citet{collins:02}
+is one way to avoid this, but we adopt the maximum violation update strategy
+described by \citet{huang:12} instead, as it requires fewer training iterations.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+\subsection{Path length normalisation, worst-case complexity}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+One problem introduced by the \textsc{edit} transition is that the number of
+actionss applied to a sentence is no longer constant --- it is no longer guaranteed
+to be $2n-1$, for a sentence of length $n$. When the \textsc{edit} transition is
+applied to a word with leftward children, those children are returned to the stack,
+and processed again.
 
-\subsection{Structured average perceptron}
+This is a problem for the perceptron model, because the model tends to assign
+high scores to its top prediction.\footnote{Recall that each training instance
+involves adding 1.0 to the weights for the correct class, and -1.0 to the weights
+for the predicted class, over several iterations. The correct class stays the
+same, while the predictions may vary, so the negative weight tends to be split
+among multiple classes. This is why the top prediction on an instance almost
+always has a high positive weight.}
+We thus observed a problem when comparing paths of different lengths, at the end
+of the sentence. Candidate that proposed \textsc{edit} transitions were longer,
+so the sum of their scores tended to be higher.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+The same problem has been observed during incremental \textsc{pcfg} parsing,
+by \citet{zhang:13}.  They introduce an additional transition, \textsc{idle},
+to ensure that paths are the same length. So long as one candidate in the beam
+is still being processed, all other candidates apply the \textsc{idle} transition.
 
+We adopt a simpler solution: we rank candidates in the beam by their mean
+transition score, instead of the sum of their scores. Our logic is that the
+problem is in the figure-of-merit used during decoding, not necessarily with the
+weights assigned by the model.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
+was less effective than their solution. We found the opposite: the features
+associated with the \textsc{idle} transition were uninformative (the state is at
+termination, so the stack and buffer are empty), and had nothing to do with how
+many edit transitions were earlier applied.
 
-\subsection{Beam search}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\subsection{Features}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\subsection{Additional features for disfluent speech}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\section{Baseline models}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-
-\subsection{Additional features for disfluent speech}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\section{Data Preparation}
-
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\subsection{Labelling interruption points}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\subsection{Retokenising multi-word expressions}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-\section{Evaluation method}
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+This is also a good place to note the effect of the \textsc{edit} transition
+on the algorithm's worst-case time complexity. TODO: calculation. We note that
+the issue is not of practical importance; our empirical parse times remain linear.
 
 \section{Experiments}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+\subsection{Evaluating parse accuracy on disfluent text}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+Our parser evaluation is modelled on the \sparseval metric \citep{sparseval}.
+However, we wanted to use the Stanford dependency scheme, to keep the system
+close to standard practice for Wall Street Journal dependency parsing, so we
+do not use the \sparseval tool itself.  Our evaluation script is distributed
+in the supplementary materials.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+We follow \sparseval in not excluding arcs from disfluent words in the parser
+evaluation.  Links from fluent words incorrectly marked disfluent are marked as
+incorrect.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+\subsection{Parsing with oracle disfluencies}
+\label{sec:oracle}
+This experiment investigates how much disfluencies disrupt parsing accuracy,
+by training and evaluating a parser on a version of Switchboard with oracle
+disfluency detection.  Every word labelled as a disfluency\footnote{That is, those
+part of the yield of a node labelled \textsc{edited} in the \textsc{ptb} annotation.}
+is removed, prior to training and evaluation.
+
+\subsection{Parsing with a disfluency pipeline}
+\label{sec:pipeline}
+The accuracy of incremental dependency parsers is well established on the Wall
+Street Journal, but there are no dependency parsing results in the literature
+that make it easy to put our joint model's parsing accuracy into context.
+
+We therefore compare our joint model to a pipeline approach, using a strong 
+syntax-based disfluency detection system.  We used the \citet{Johnson04a}
+noisy-channel model, with the \citet{Charniak01a} parser as a syntactic language
+model.  We chose this system because it is an extension of the \citet{Charniak01b}
+boosting classifier, which is the only disfluency detection system studied as
+a pre-processor to a syntactic parser.  The accuracy of the model has improved
+since \citet{Johnson04a}, as it now includes the additional features described by
+\citet{zwarts:11}.  In fact, its accuracy is higher than the previous state-of-the-art.
+
+The parser is first trained on the cleaned corpus, as described in section
+\ref{sec:oracle}. The \citet{Charniak01a} is cross-fold trained on the Switchboard
+corpus, and then scores candidates produced by the \citet{Johnson04a} noisy-channel
+model.  A MaxEnt reranker then considers the channel model and language model scores,
+in addition to features described by \citet{zwarts:11}. We then parse the string
+that results from omitting words marked as disfluent by top-ranked hypothesis.
+
+As complicated as this pipeline is, and as high-scoring as the disfluency detector
+is, the configuration is arguably still slightly unfair, even though it matches
+the architecture used by \citet{Charniak01a}. The parser has been
+trained on text with oracle pre-processing, but at run-time it is exposed to
+text with some disfluencies. The model would probably be more accurate if we
+introduced \emph{another} cross-fold training step, so that the parser is trained
+on text with some disfluencies.
+
+We consider that a subject for future work, because the natural extension of
+that approach is to adopt a form of `pipeline iteration'
+\citet{hollingshead:07}. One could just as easily use \emph{our} model as the
+disfluency detection pre-process, and chain together several iterations to
+successively clean the text.
+
+\subsection{Data set}
+
+We use the Switchboard portion of the Penn Treebank \citep{marcus:93} for our
+experiments, which consists of telephone conversations between strangers about
+an assigned topic.  Two annotation layers are provided: one for syntactic bracketing,
+and one for disfluencies.  The disfluency layer marks elements with
+little or no syntactic function, such as filled pauses and discourse markers,
+and annotates speech repairs using the \citet{shriberg:94} system of
+reparandum/interregnum/repair.
+
+The convention within the syntactic brackets is to cover speech-repairs with
+the node \textsc{edited}.  The complication is that the two layers were annotated
+separately, and do not always overlap, as the project was halted before they
+could be fully reconciled. This complicates comparison with previous work, as
+researchers interested in parsing have tended to use only the \textsc{edited}
+nodes as disfluency markers \citep{Charniak01a,jorgensen:07}, while those solely
+interested in disfluency detection have tended to use the richer annotations in
+the \textsc{dps} files.
+
+We found that following the \textsc{dps} file annotations led to bad
+gold-standard parses when the annotation disagreed with the \textsc{edited}
+nodes.  In the training data, TODO words are under \textsc{edited} nodes, and
+TODO of them are also marked as disfluent in the \textsc{dps} annotations
+imported into the \textsc{mrg} files. There are TODO words that the \textsc{dps}
+annotations mark as disfluent that are \emph{not} under \textsc{edited} nodes.
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr|rr}
+        & P & R & F & \textsc{uas} & \textsc{las} \\
+        \hline \hline
+        Parser      & 81.9 & 70.1 & 75.5 & 89.7  & 86.8 \\
+        +Clusters   & 81.5 & 70.7 & 75.7 & 89.8  & 86.8 \\
+        +Features   & 86.6 & 76.2 & 81.1 & 90.1  & 87.1 \\
+        +Transition & 91.9 & 80.0 & 85.6 & 90.6  & 87.5 \\
+        \hline
+        Pipe (Sec. \ref{sec:pipeline})  & 89.4 & 80.3 & 84.6 & 90.4 & 87.3 \\
+        \hline       
+        Oracle (Sec. \ref{sec:oracle})  & 100 & 100 & 100 & 91.7 & 88.5 \\
+        \hline
+    \end{tabular}
+\caption{Development accuracies for disfluency detection and parse accuracy.}
+\end{table}
+
+
 
 \section{Results}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+\begin{table}
+\centering
+\begin{tabular}{l|r}
+    System          & \textsc{uas} \\
+    \hline \hline
+    Pipeline parser & ?? \\
+    Joint parser    & ?? \\
+    \hline
+\end{tabular}
+\caption{Parser evaluation on \textsc{swbd} test set. The pipeline parser, described
+    in Section \ref{sec:pipeline}, uses a state-of-the-art syntax-based noisy
+    channel model, followed by our parser trained on clean text. This yields
+    significantly lower parse accuracies than our best joint model, which includes
+additional features and the non-monotonic Edit transition.\label{tab:parseval}}
+\end{table}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+\begin{table}
+    \centering
+    \begin{tabular}{l|r}
+        System                      & Disfluency $F$ \\
+        \hline \hline
+        Xian and Liu (2013)         & ?? \\
+        Noisy channel pipeline      & ?? \\
+        Joint parser                & ?? \\
+        \hline
+    \end{tabular}
+    \caption{Disfluency evaluation on the Switchboard test set. Our joint parser-based
+             model compares favourably 
+             against the noisy channel model used for our pipeline experiments
+             (Section \ref{sec:pipeline}) and the previous state-of-the-art system.
+         \label{tab:dfl_eval}}
+\end{table}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+\section{Analysis of Edit behaviour}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+Over Section 24, we predict 2,459 Edit transitions, which together marked 2,702
+words disfluent (2,462 correctly). So the model largely assigns disfluency labels
+word-by-word, only sometimes marking rightward branches disfluent.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+For the 2,459 Edit transitions, in 2,309 of them S0 was disfluent (for this
+statistic, there might be some of its rightward subtree that is actually fluent,
+that will be marked as wrong here. We don't evaluate that here.)
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+Of the 2,459 Edit transitions, 1554 had no leftward children, 512 returned one word,
+and another 393 together returned a total of 1080 words to the stack. Looked at
+another way, 1,592 leftward children were returned to the stack, from a total of
+905 Edit transitions.
 
-\section{Analysis}
+Of the 1,592 instances of a word being returned to the stack, 121 were cases where
+the same word was returned two or more times --- i.e. 1,471 tokens were returned
+to the stack at least once, for a total of 1,592 returnings.
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+The 1,471 tokens break down as follows:
+\begin{itemize}
+    \item 607 were subsequently marked as disfluent
+    \item 864 became left-children of a word marked fluent.
+\end{itemize}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+Of the 607 marked disfluent:
+\begin{itemize}
+    \item 562 were true positives
+    \item 45 were false positives
+\end{itemize}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
+Of the 864 re-integrated into the tree:
+\begin{itemize}
+    \item 699 were attached to their correct head
+    \item 165 were attached incorrectly
+\end{itemize}
 
+Of the 165 mistakes:
+\begin{itemize}
+    \item 26 were false-negative disfluencies
+    \item 139 were just parse errors
+\end{itemize}
+
+Some conclusions:
+\begin{itemize}
+\item The split for what we should do with the left children is quite even, so a
+  heuristic would probably not perform well
+\item 26 false negative disfluencies means that returning to the stack introduces
+  few recall errors. If the word is disfluent, the model is good at making
+  that separate judgment.
+\item The precision of marking words that were returned to the stack as disfluent
+  is similar to the overall precision.
+\end{itemize}
 
 \section{Related Work}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
 
 \section{Conclusion}
 
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
-
-Lorem ipsum dolor sit amet, consectetur adipisicing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id laborum.
 
 \bibliography{main}
 \bibliographystyle{aclnat}
