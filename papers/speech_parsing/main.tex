@@ -63,8 +63,8 @@
 \newcommand{\szero}{S0\xspace}
 \newcommand{\nzero}{N0\xspace}
 
-\newcommand{\szeroh}{S0$_h$\xspace}
-\newcommand{\szerohh}{S0$_{h2}$\xspace}
+\newcommand{\szeroH}{S0$_h$\xspace}
+\newcommand{\szeroHH}{S0$_{h2}$\xspace}
 \newcommand{\szeroL}{S0$_L$\xspace}
 \newcommand{\szeroLL}{S0$_{L2}$\xspace}
 \newcommand{\szeroR}{S0$_R$\xspace}
@@ -99,14 +99,14 @@
 \begin{abstract}
 
     We present the first joint model of dependency parsing and
-    disfluency detection. A standard incremental beam-search model
-    proves well suited to the task, achieving much better parsing and disfluency
-    detection scores than previous joint \pcfg models.
+    disfluency detection. An incremental beam-search model
+    proves well suited to the task, achieving much better parsing and
+    disfluency detection scores than previous joint models.
 
 We then improve the model further, by introducing features targetting disfluency
 detection, and a novel non-monotonic transition system designed for speech repairs.
-Our final model achieves TODO\% disfluency $F$-measure; comparable to the current
-state-of-the-art and better than previous incremental models.
+Our final model achieves TODO\% $F$-measure at marking edited words; comparable
+to the current state-of-the-art and better than previous incremental models.
 
 \end{abstract}
 
@@ -133,11 +133,10 @@ there are 19,015. Punctuation and metadata tokens were removed before both count
 %seem a poor fit for learning disfluent sentences, which are examples of linguistic
 %performance, rather than linguistic competence.
 
-Instead of a pipeline approach, we adopt a different type of parsing model,
-incremental dependency parsing,
-which does not rely on a grammar and makes fewer linguistic assumptions.
-The only previous work on dependency parsing of speech that we are aware of
-is from \citet{jorgensen:07}, who ran the \textsc{malt} parser on the Switchboard
+Instead of a pipeline approach, we adopt a parsing model that does not rely on
+a grammar and makes fewer linguistic assumptions.
+The only previous work on dependency parsing of unscripted speech that we are aware
+of is from \citet{jorgensen:07}, who ran the \textsc{malt} parser on the Switchboard
 corpus. Since then, dependency parsers have improved in accuracy substantially,
 and now rival the best \pcfg models.
 %\footnote{The parsers described by
@@ -146,21 +145,20 @@ and now rival the best \pcfg models.
 
 Our first experiment is to apply a state-of-the-art incremental dependency parser
 `out-of-the-box', with disfluencies simply marked by giving them a distinct
-dependency label. A standard beam-search structured perceptron parser
+dependency label. A structured perceptron parser with beam-search
 \citep{zhang:cl11,zhang:11} predicted the heads of fluent words
-with 89.7\% accuracy, and detected disfluencies with 75.5\% $F$-measure.
+with 89.7\% accuracy, and detected edited words with 75.5\% $F$-measure.
 We then describe methods of customising the feature set and transition system
 of the parser to deal with disfluencies, which together improve these scores
 substantially.
 
 Our disfluency features were designed to capture the
 `rough copy' structure of some speech repairs, which motivates the
-\citet{Johnson04a} noisy channel model.  These features improve disfluency
-$F$-measure to 81.1\%.  The ease with which
-incremental dependency parsers can incorporate arbitrary features is one of
-their principal advantages.
+\citet{Johnson04a} noisy channel model.  These features improve edit detection
+$F$-measure to 81.1\%.  The ease with which incremental dependency parsers can
+incorporate arbitrary features is one of their principal advantages.
 
-The second improvement is a novel non-monotonic extension to the transition
+Our second improvement is a novel non-monotonic extension to the transition
 system. It allows the parser to create temporary edges, in order to deal with
 speech repairs where the head of an apparent constituent is disfluent, but some
 of its apparent leftward children are not.
@@ -187,7 +185,7 @@ parsing. It also has other important advantages:
 \end{itemize}
 
 \section{Switchboard disfluency annotations}
-
+\label{sec:swbd}
 The Switchboard portion of the Penn Treebank \citep{marcus:93} consists of
 telephone conversations between strangers about
 an assigned topic.  Two annotation layers are provided: one for syntactic
@@ -196,23 +194,24 @@ and one for disfluencies (\textsc{dps} files).  The disfluency layer marks
 elements with little or no syntactic function, such as filled pauses and discourse
 markers, and annotates speech repairs using the \citet{shriberg:94} system of
 reparandum/interregnum/repair.
-The main way the \textsc{mrg} files mark disfluencies is with a node labelled
-\textsc{edited}.  The idea behind this annotation is to mark text which, if
-excised, will lead to a grammatical sentence.
 
-%The \textsc{dps} reparandum/interregnum/repair boundaries are represented in the
-%\textsc{mrg} files using meta-data tokens.  However, there is an additional
-%complication: the two layers are segmented differently, so if the treebank
-%sentences are assumed to be independent of each other, the
-%reparandum/interregnum/repair annotations in them do not always make sense.
+In the syntactic annotation, edited words are covered by a special node labelled
+\textsc{edited}.
+The idea behind this annotation is to mark text which, if
+excised, will lead to a grammatical sentence.  The \textsc{mrg} files do not
+mark other types of disfluencies, such as filled pauses (e.g. \emph{um}, \emph{uh}),
+parentheticals (e.g. \emph{you know}) or explicit editing terms (e.g. \emph{i mean}).
+We follow most previous work in restricting our attention to speech repairs.
 
 The two layers have high but imperfect agreement over
-what tokens they mark disfluent: the \textsc{dps} files call
-32,310 tokens speech repairs, while 32,742 are marked disfluent in the treebank,
-with 33,720 tokens marked disfluent in at least one layer.
+what tokens they mark as repaired: the \textsc{dps} files call
+32,310 tokens part of a reparandum, while 32,742 are under \textsc{edited} nodes in
+the syntactic annotation, with 33,720 tokens marked disfluent in at least one layer.
+We use the \textsc{mrg} layer, as we need syntactic annotations to train and
+evaluate our joint syntactic parser.
 
 \subsection{Dependency conversion}
-
+\label{sec:deps}
 As is standard in recent statistical dependency parsing work, we acquire our
 gold-standard dependencies by converting phrase-structure trees.
 We used the 2013-04-05 version of the Stanford dependency converter \citep{stanford_deps}.
@@ -227,30 +226,36 @@ cleaning was performed after the dependency conversion. The resulting corpora
 were largely identical: 99.54\% of unlabelled and 98.7\% of labelled dependencies
 were the same.
 
-The fact that the Stanford converter is robust to the disfluencies is good news
+The fact that the Stanford converter is quite robust to the disfluencies is good news
 for our baseline model. In our \textsc{edit} model, the structure of disfluent
 constituents is under-specified; but for the baseline model, we use the structure
 output by the Stanford converter.
 
 We follow previous work on disfluency detection in lower-casing the text and
-removing punctuation and partial words\textsc{Words tagged XX and words ending in
-`'.}.  We also filter out one- and two-token sentences.
-
-We found that two additional simple pre-processes improved our results:
-
-\begin{enumerate}
-    \item Discard all `um' and `uh' tokens;
-    \item Merge `you know' and `i mean' into single tokens.
-\end{enumerate}
+removing punctuation and partial words (words tagged XX and words ending in
+`-').  We also filter out one- and two-token sentences.
+We found that two additional simple pre-processes improved our results: discarding
+all `um' and `uh' tokens; and merging `you know' and `i mean' into single tokens.
 
 These pre-processes can be completed on the input string without losing information:
 none of the `um' or `uh' tokens are semantically significant, and
 the bigrams \emph{you know} and \emph{you mean} have a dependency between the two
-tokens over 99.9\% of the times they occur in the treebank. We found that `um'
-and `uh' were not useful clues about when speakers might become disfluent, and
-we doubted that there was any utility in predicting a syntactic head for them.
-More nuanced handling of speech-specific multi-word expressions seems an interesting
-topic for future work.
+tokens over 99.9\% of the times they occur in the treebank.
+%We found that `um'
+%and `uh' were not useful clues about when speakers might become disfluent, and
+%we doubted that there was any utility in predicting a syntactic head for them.
+%More nuanced handling of speech-specific multi-word expressions seems an interesting
+%topic for future work.  It would also be interesting to see whether other filler
+%words could be detected with high enough accuracy to discard them as a pre-process.
+
+While running our experiments, we noted that our accuracy on dependencies
+typed \textsc{dep} was very low, and that these often reflected conversion errors.
+More complicated conversion processes, which make use of the \textsc{dps} discourse
+annotations, might alleviate this. The only thing we tried along these lines was
+to relabel dependencies of words marked as discourse items with the label
+\textsc{discourse}. The converter appears to assign this to words tagged \textsc{uh}
+which was less consistently assigned than the discourse tags.
+%We reserve more nuanced conversion strategies for future work.
 
 \section{Transition-based dependency parsing}
 
@@ -294,27 +299,49 @@ stack and buffer are not empty, and that S0 is not assigned a head yet). Finally
 the Reduce action pops the stack, with a precondition that the stack is not empty
 and that S0 is already assigned a head.
 
+We extend this set with a new transition, \textsc{edit}, which we describe in
+Section \ref{sec:edittrans}.  The transition pops S0 from the stack, and marks
+it and its rightward subtree as disfluent, but returns its leftward children to
+the stack to be reprocessed.  Arcs to and from disfluent words are deleted.
+
 \section{Features for the joint parser}
 
 Our baseline parser uses the feature set described by \citet{zhang:11}.
-To describe the features, we use the following notation. First, we name the
-12 context tokens shown in Figure ??. These are the word on top of the stack, its
-left and right subtree, its parent and its grandparent; the first word of the buffer
-and its leftward subtree (it cannot have a rightward subtree); and the next two
-tokens of the buffer (these cannot have subtrees or parents).
+The feature set contains TODO templates that mostly refer to the properties of
+12 \emph{context tokens}: the top of the stack (\szero), its two leftmost and
+rightmost children (\szeroL, \szeroLL, \szeroR, \szeroRR), its parent and
+grand-parent (\szeroH, \szeroHH), the first word of the buffer and its two leftmost
+children (\nzero, \nzeroL, \nzeroLL), and the next two words of the buffer (N1, N2).
 
 Atomic features consist of the word, part-of- speech tag, or dependency label
-for these tokens, and feature templates often consist of multiple fea- ture atoms
-in combination. We refer the reader to \citet{zhang:11} for the specific feature
+for these tokens, and feature templates often consist of multiple feature atoms
+in combination.  The feature set also considers the string-distance between \szero
+and \nzero, and the left and right valencies
+(total number of children) for \szero and \nzero, as well as the set of labels
+assigned in their subtrees. We restrict the label set features to the first and
+last 2 children for implementation efficiency, as we found this had no effect on
+accuracy. Numeric features (for distance and valency) are binned by single
+increments, with a final bin for 5+.  The only bi-lexical feature template pairs
+the words of \szero and \nzero.
+There are also ten tri-tag templates, which consider the
+\pos tag of \szero, \nzero, and various other context tokens.
+We refer the reader to \citet{zhang:11} for the specific feature
 templates used.
+
+We follow \citet{zhang:cl11} in subtyping the Left- and Right-Arc transitions
+by dependency label.  We added additional label features to the baseline feature
+set, as we found that disfluency detection errors often resulted in ungrammatical
+label combinations.  The additional templates combine the \pos tag of \szero with
+two or three labels from its left and right subtrees. We refer the reader to the
+supplementary material for the exact templates added.
 
 \subsection{Brown cluster features}
 
-The Brown clustering algorithm \citep{clustering} provides a well known source
+The Brown clustering algorithm \citep{brown:92} provides a well known source
 of semi-supervised features. The clustering algorithm is run over a large sample
 of unlabelled data, to generate a type-to-cluster map. This mapping is then used
-to generate features that sometimes generalise better than lexical features
-\citet{turian}.
+to generate features that sometimes generalise better than lexical features,
+and are helpful for out-of-vocabulary words \citep{turian:10}.
 
 \citet{koo:10} found that Brown cluster features greatly improved the performance
 of a graph-based dependency parser. On our transition-based parser, Brown cluster
@@ -322,9 +349,9 @@ features bring a small but statistically significant improvement on the \textsc{
 task (0.1-0.3\% \textsc{uas}).  Other developers of transition-based parsers
 seem to have found similar results (personal communication).
 
-Since the Brown cluster type-mapping computed by \citet{turian:10} is easily
-available\footnote{\url{www.metaoptimize.com}}, the features are very simple
-to implement and cheap to compute, so we see little reason not to include them
+Since a Brown cluster type-mapping computed by \citet{liang:05} is easily
+available\footnote{\url{www.metaoptimize.com/projects/wordreps}}, the features
+are very simple to implement and cheap to compute, so we see little reason not to include them
 in the parser.
 
 Our templates follow \citet{koo:10} in including features for full clusters as
@@ -337,10 +364,15 @@ of the buffer'. The exact templates can be found in the supplementary material.
 \citet{Johnson04a} point out that in speech repairs, the repair is often a rough
 copy of the reparandum.  The simplest case of this is where the repair is a single
 word repetition. In more complex cases, some of the wording or grammatical
-structure will be the same, and the rest will be different.
+structure will be the same, and the rest will be different.  Common cases
+are for the repair to add a suffix or prefix to the reparandum.
 
 To capture this regularity, we first extend the feature-set to track three new
-\emph{context tokens}:
+\emph{context tokens}, by their index in the sentence:\footnote{As is common
+in this type of parser, our implementation has a number of vectors for properties
+that are defined before parsing, such as word forms, \textsc{pos} tags, Brown
+clusters, etc. The index allows features considering any of these
+properties to be computed.}
 \begin{enumerate}
     \item \szeroRedge : The rightmost edge of \szero 's yield;
     \item \szeroLedge : The leftmost edge of \szero 's yield;
@@ -353,21 +385,28 @@ its own rightward edge if it has no rightward children. Note that the token
 \szeroRedge is necessarily immediately before \nzeroLedge, unless some of the
 tokens between them are disfluent.
 
-The yield-edge tokens can be updated during parsing for the word on top of the
-stack and the first word of the buffer.
-It is difficult to ensure that other words
-have their yield-edges marked correctly, but that is not important
-for our features.
+These features can be computed naively by traversing the parse tree for each
+instance. However, this process would not be linear in complexity with respect
+to sentence length.  Instead, we maintain two additional vectors, for left
+and right yield edges, and update them during parsing.  To do this, we exploit
+the fact that our features only consider the yield-edges of the tokens currently
+at S0 and N0, as disfluency processing takes place between these two tokens.
+We can therefore let the yield edges for tokens deeper in the stack
+or that have been popped from the stack go out of date.  It turns out that the
+yield edges for S0 and N0 can be maintained very cheaply:
 
-The Left-Arc move makes \szero the leftmost child of \nzero. The left yield-edge of
-\nzero is therefore the left yield-edge of \szero. The Right-Arc move makes \nzero
-the rightmost child of \szero. \nzero cannot have a rightward subtree, so it must
-be the rightmost child of \szero.  After a Right-Arc, \nzero will also become
-new rightmost edge of all ancestors of \szero.  When the Reduce move is used,
-we set the right yield-edge of S1 to be the right yield-edge of \szero.
+\begin{itemize}
+\item The Left-Arc move makes \szero the leftmost child of \nzero. The left yield-edge of
+\nzero is therefore the left yield-edge of \szero.
+\item The Right-Arc move makes \nzero the rightmost child of \szero. \nzero cannot have a rightward subtree, so it must
+be the rightmost child of \szero. After a Right-Arc, \nzero will also become
+new rightmost edge of all ancestors of \szero.
+\item When the Reduce move is used, we set the right yield-edge of S1 to be the
+      right yield-edge of \szero.
+\item The Shift move does not create any dependencies, so yield-edges are unchanged.
+\end{itemize}
 
-We calculate a simple form of rough-copy feature using the \szeroLedge and
-\nzeroLedge tokens.  The features ask:
+Having computed the yield edges, we calculate a simple form of rough-copy feature using the \szeroLedge and \nzeroLedge tokens.  The features ask:
 
 \begin{itemize}
     \item How long is the \emph{prefix word match} between \szeroLedge...\szero
@@ -391,7 +430,7 @@ This turned out to make no difference, so we used the simpler scheme.}
 
 This class of features ask which pairs of the \emph{context tokens} match, in
 word or \pos tag.  The context tokens in the \citet{zhang:11} feature set
-are the top of the stack (\szero), its head and grandparent (\szeroh, \szerohh),
+are the top of the stack (\szero), its head and grandparent (\szeroH, \szeroHH),
 its two left- and rightmost children (\szeroL, \szeroLL, \szeroR, \szeroRR), the
 first three words of the buffer (\nzero, N1, N2), and the two leftmost children
 of \nzero (\nzeroL, \nzeroLL).
@@ -416,59 +455,79 @@ immediately before \nzero were marked disfluent. A similar pair of features is
 added for the word or pair of words immediately after \szero.
 
 \section{A non-monotonic Edit transition}
+\label{sec:edittrans}
+\begin{figure}
+    \small
+\begin{dependency}[theme=simple, segmented edge]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    Pass \& me \& the \& red \& rectangle \& uh I mean \& square \\
+    \end{deptext}
+    \depedge[edge unit distance=0.9ex]{1}{2}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{3}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{4}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{1}{5}{}
+    \depedge[edge unit distance=0.7ex]{7}{3}{}
+    \depedge[edge unit distance=0.7ex]{7}{4}{}
+    \depedge[edge unit distance=0.6ex]{1}{7}{}
+    \end{dependency}
+    \caption{\small Example where `temporary edges' between the reparandum and the
+    fluent sentence complicate parsing. In order to learn a projective tree
+    for the sentence, the parser would have to learn not to assign the dotted
+    edges below. We instead make the parsing process non-monotonic.
+\label{fig:rectangle}}
+\end{figure}
 
-One of the reasons that joint disfluency detection and parsing is hard is due to
-what ? terms helical dependency structures. Figure ?? shows a simple example.
-The repair square replaces the reparan- dum5 rectangle, and must be attached to
-the rest of the fluent sentence.
+One of the reasons disfluent sentences are hard to parse is that there are often
+syntactic relationships between words in the reparandum and the fluent sentence.
+When these relations are added to the `true' dependencies between fluent words,
+the resulting structure is not necessarily a projective tree.
 
-The problematic dependencies, shown in dotted lines, are between `rectangle'
-and `a' and `red'. These arcs are not exactly correct, as we do not want them in
-a final projective tree, but they are also not exactly incorrect, in the way that
-an arc from `a' to `pass' or `me' would be.
+Figure \ref{fig:rectangle} shows a simple example.
+The repair \emph{square} replaces the \emph{reparandum} rectangle, and must be
+attached to the rest of the fluent sentence.
+The problematic dependencies are shown in dotted lines, below the words.
+These arcs are not exactly correct, as they aren't part of the intended semantics,
+but they are also not exactly incorrect, in the way that an arc from \emph{a}
+to \emph{pass} or \emph{me} would be.
 
-For a transition-based model, learning to avoid these arcs is very difficult.
-Unless the interruption point is within the look-ahead into the buffer, the
-incremental model cannot guess that ‘rect- angle’ will later prove disfluent,
-so trying to learn disfluency-specific behaviour at this point seems a bad strategy.
-What we want instead is for the parser to apply whatever it has learned about English
-grammar to this decision, and later arrive at a state that is inconsistent with
-that grammar, forcing it to mark rectangle as disfluent.
+For an incremental model to avoid these arcs, it will have to treat \emph{rectangle}
+as disfluent from the time it is first at the head of the buffer.  This seems
+very difficult --- the parser is very susceptible to
+treating \emph{the red rectangle} as a constituent.  It's not even clear that
+that should be considered incorrect.  We suspect an eye-tracking experiment would
+reveal that the human processor (which is clearly incremental) would also form
+such a constituent.  TODO: citation.
 
-We achieve this by adding a new transition, \edittrans, to the arc-eager system.
-The \edittrans transition marks the top word of the stack and its rightward subtree
-as disfluent, but returns its leftward children to the stack, and deletes a
-dependency to it if one exists.
+Psycholinguistic models of human sentence processing have long posited
+\emph{repair} mechanisms \citep{FrazierRayner1982}.  Recently, \citet{honnibal:13}
+showed that a limited amount of `non-monotonic' behaviour can 
+improve an incremental parser's accuracy on some types of garden-path constructions.
+We here introduce a non-monotonic transition, \textsc{edit}, to handle speech
+repairs. 
 
-Figure ?? shows a before-and-after example. In the configuration above, rectangle
-is on top of the stack (indicated by circling the word). After the \textsc{edit}
-transition, it is marked as disfluent (crossed), the arc to it is deleted, and its
-leftward children (empha and red) are restored to the stack. The substructures
-of these children are not rebuilt —-- we do not delete the arc from bright to red,
-or restore bright to the stack.
+The \textsc{edit} transition does the following:
 
-Why revisit the leftward children, but not the right? The logic here is that we are
-concerned about dependencies which might be ‘mirrored’ be- tween the reparandum
-and the repair. The rightward subtree of the disfluency might well be incorrect,
-but if it is, it would still be incorrect if the word on top of the stack weren’t
-disfluent —-- so we regard these as parsing errors that we will train our model
-to avoid. In contrast, avoiding the left- ward arcs would require the parser to
+\begin{enumerate}
+    \item Mark \szero and its \emph{rightward yield} as disfluent;
+    \item Delete all arcs to and from \szero
+    \item Place the former leftward children of \szero back onto the stack.
+    \item Pop \szero from the stack;
+\end{enumerate}
+
+Why revisit the leftward children, but not the right? The logic here is that we
+are concerned about dependencies which might be mirrored be- tween the reparandum
+and the repair. The right-ward subtree of the disfluency might well be incorrect,
+but if it is, it would still be incorrect if the word on top of the stack weren't
+disfluent --– so we regard these as parsing errors that we will train our model
+to avoid. In contrast, avoiding the leftward arcs would require the parser to
 predict that the head is disfluent, when it has not necessarily seen any evidence
 indicating that.
 
-The EDIT transition makes the transition system non-monotonic, in the terms of
-\citet{goldberg:12},
-who showed that a greedy arc-eager parser became more accurate when given a limited
-ability to correct for incorrect transitions. We use a beam-search parser, which
-is well equipped to correct for the cases which the non-monoticity they introduce
-helps with. We therefore restrict our parser’s non-monotonic behaviour to the
-EDIT transition.
-
-The \edittrans transition introduces substantial spurious ambiguity: there are multiple
-transition sequences that could yield the gold-standard dependencies. We therefore
-adopt the `dynamic oracle' training method of \citet{goldberg:12} described in
-Section 3.1.
-
+The transition is \emph{non-monotonic} in the sense that it can delete arcs
+that the parser had previously proposed, and replace tokens onto the stack for
+further processing.  We will now present a detailed motivating example for the
+transition, before describing how the model is trained, and how we accomodate
+the fact that transition histories can now be of varying lengths.
 
 \subsection{Motivating example}
 
@@ -636,60 +695,74 @@ Section 3.1.
     \end{dependency}\\[-2.0ex]
  
     \end{tabular}
-    \caption{\small Example from the development data where the Edit transition improves accuracy. Words on the stack are shown circled, while words marked disfluent with the Edit transition are struck-through. The start of the buffer is marked with $\|$}.
+    \caption{\small Example from the development data where the Edit transition
+    improves accuracy. Words on the stack are shown circled, while words marked
+    disfluent with the Edit transition are struck-through. The start of the
+    buffer is marked with $\|$}.
 \end{figure*}
 
 Figure 2 shows part of a sentence from the development data that contains several
-difficult disfluencies, of the type the Edit transition is designed to address.
-Each numbered line shows a state along the final path predicted by the parser.
+difficult disfluencies, of the type the \edittrans transition is designed to address.
+Each numbered line shows a state along the final path predicted by the
+parser.\footnote{This discussion is intended for illustration, and may not reflect
+how our final model actually behaves, or why.  Our model is evaluated
+statistically in Section \ref{sec:results}.}
 The actions performed to transform the previous state into the current one are
 listed in angle brackets. Words on the stack are circled, and dependencies are
 shown as arcs from the head to the child. The $\|$ symbol shows where the buffer
 begins.
 
-Line 1 shows a state resulting resulting from a Right-Arc (R) from noticed to that.
-Previously, the parser had performed a Left-Arc from noticed to I, which is no
-longer on the stack. The itali- cised words in the buffer are disfluent, and will
+Line 1 shows a state resulting from a Right-Arc (R) from \emph{noticed}
+to \emph{that}. Previously, the parser had performed a Left-Arc from \emph{noticed}
+to \emph{I}, which is no
+longer on the stack. The italicised words in the buffer are disfluent, and will
 be deleted using the \edittrans transition. Deletions will be marked by strike-through.
 
 Line 2 shows the state after the Shift move (S)
-move has pushed the and monthly onto the stack. It would be correct to apply the
-Edit transition to this configuration, but that is only one of several moves that
-the dynamic oracle (Sections ??) would assign zero-cost during training.
+has pushed \emph{the} and \emph{monthly} onto the stack. It would be correct to
+apply the \edittrans transition to this configuration, but that is only one of
+several moves that we would consider to be correct, or `zero-cost'.\footnote{As
+we explain in Section \ref{sec:oracle}, our training process does not use a single
+canonical derivation as its gold-standard.  Instead, our training process is adjusted
+for the \emph{spurious ambiguity} we introduce via the non-monotonic transition
+system, using a dynamic oracle \citep{goldberg:12}.}
 
-The model selects a different zero-cost action, Left-Arc, which pops monthly and
-attaches it to salary. The parser then performs another Left- Arc, attaching the
-fluent word the to the disfluent word salary, resulting in the state at Line 3.
+The model selects a different zero-cost action, Left-Arc, which pops \emph{monthly}
+and attaches it to \emph{salary}. The parser then performs another Left-Arc,
+attaching the fluent word the to the disfluent word salary, resulting in the
+state at Line 3.
 
-The critical difference between the EDIT model and the baseline is that this type
-of arc is also zero- cost in the EDIT model, because we will later put the back
-onto the stack. Our argument is that from the configuration in Line 2, the Left-Arcs
-are the natural choice, and a loss-function that penalises this move will be
-unlearnable. The state resulting from these two actions is shown in Line 3.
+The critical difference between the \edittrans model and the baseline is that
+this type of arc is also zero-cost in the \edittrans model, because we will later
+put \emph{the} back onto the stack. Our argument is that from the configuration
+in Line 2, the Left-Arcs are the natural choice, and a loss-function that penalises
+this move will be very difficult to learn. The state resulting from these two
+actions is shown in Line 3.
 
-The parser’s next action is a Right-Arc from the fluent noticed to the disfluent
-\emph{salary}, pushing salary onto the stack. This action is also zero-cost,
-even though it creates an erroneous arc, because we’ll later have the chance to
-delete the arc via the EDIT transition. The parser then performs a series of
-Shift and Left-Arc moves, attaching the fluent tokens starting, monthly and
-average to the sec- ond disfluent salary token. These arcs are all also zero-cost,
-and are further examples of the type of arc that motivates the \edittrans transition.
+The parser’s next action is a Right-Arc from the fluent \emph{noticed} to the
+disfluent \emph{salary}, pushing \emph{salary} onto the stack. This action is also
+zero-cost, even though it creates an erroneous arc, because we’ll later have the chance to
+delete the arc via the \edittrans transition. The parser then performs a series of
+Shift and Left-Arc moves, attaching the fluent tokens \emph{starting}, \emph{monthly}
+and \emph{average} to the second disfluent \emph{salary} token. These arcs are all
+also zero-cost, and are further examples of the type of arc that motivates the
+\edittrans transition.
 
 The parser is now (Line 4) in a state from which it can confidently predict that
-the salary token on top of the stack is disfluent, as there is a matching word at
-the start of the buffer that isn’t one of the small set of words that are often
-repeated in the training data. The word-match features will also find a match
+the \emph{salary} token on top of the stack is disfluent, as there is a matching
+word at the start of the buffer that isn’t one of the small set of words that are
+often repeated in the training data. The word-match features will also find a match
 between the tokens S0L0 and N0L0 (first left child of S0 and first left child
 of N0).
 
-Line 5 shows the state that results from the \edittrans transition. It marks salary as
-disfluent, deletes all arcs to and from it, pops it from the stack, and restores
-its leftward children to the stack — in this case, monthly. The parser’s next
-action is to mark monthly as disfluent. A Left-Arc, Shift, or even Right-Arc
-would all have been zero-cost from this state, because the word on top of the
-stack and the word at the start of the buffer are both disfluent. Instead, the
-word-match between S0 and N0L0, combined with the fact that the token after S0
-was marked disfluent, leads the parser to mark monthly as also disfluent.
+Line 5 shows the state that results from the \edittrans transition. It marks
+\emph{salary} as disfluent, deletes all arcs to and from it, pops it from the
+stack, and restores its leftward children to the stack —-- in this case, monthly.
+The parser’s next action is to mark monthly as disfluent. A Left-Arc, Shift, or
+even Right-Arc would all have been zero-cost from this state, because the word
+on top of the stack and the word at the start of the buffer are both disfluent.
+Instead, the word-match between S0 and N0L0, combined with the fact that the token
+after S0 was marked disfluent, leads the parser to mark monthly as also disfluent.
 
 The parser next applies the Left-Arc transition from the disfluent salary to the
 fluent the, again at zero-cost, even though the arc is incorrect. The Shift move
@@ -700,7 +773,7 @@ fires, encouraging the parser to select the EDIT transition, which restores the,
 starting, average and monthly to the stack, resulting in the state on Line 9.
 
 Having successfully marked the disfluencies, the parser performs a series of
-Left-Arcs, before correctly attaching salary to noticed via the Right- Arc,
+Left-Arcs, before correctly attaching salary to noticed via the Right-Arc,
 and happens to correctly attach the preposi- tional phrase as well.
 
 \subsection{Dynamic oracle training}
@@ -758,15 +831,17 @@ refer to as an `invalid update'.  The early-update strategy of \citet{collins:02
 is one way to avoid this, but we adopt the maximum violation update strategy
 described by \citet{huang:12} instead, as it requires fewer training iterations.
 
-\subsection{Path length normalisation, worst-case complexity}
+\subsection{Path length normalisation}
 
 One problem introduced by the \textsc{edit} transition is that the number of
 actionss applied to a sentence is no longer constant --- it is no longer guaranteed
 to be $2n-1$, for a sentence of length $n$. When the \textsc{edit} transition is
 applied to a word with leftward children, those children are returned to the stack,
-and processed again.
+and processed again.  This has little to no impact on the algorithm's empirical
+efficiency, although its worst-case complexity is no longer linear, but it does
+pose a problem for decoding.
 
-This is a problem for the perceptron model, because the model tends to assign
+The perceptron model tends to assign
 high scores to its top prediction.\footnote{Recall that each training instance
 involves adding 1.0 to the weights for the correct class, and -1.0 to the weights
 for the predicted class, over several iterations. The correct class stays the
@@ -774,7 +849,7 @@ same, while the predictions may vary, so the negative weight tends to be split
 among multiple classes. This is why the top prediction on an instance almost
 always has a high positive weight.}
 We thus observed a problem when comparing paths of different lengths, at the end
-of the sentence. Candidate that proposed \textsc{edit} transitions were longer,
+of the sentence. Candidates that proposed \textsc{edit} transitions were longer,
 so the sum of their scores tended to be higher.
 
 The same problem has been observed during incremental \textsc{pcfg} parsing,
@@ -782,10 +857,10 @@ by \citet{zhang:13}.  They introduce an additional transition, \textsc{idle},
 to ensure that paths are the same length. So long as one candidate in the beam
 is still being processed, all other candidates apply the \textsc{idle} transition.
 
-We adopt a simpler solution: we rank candidates in the beam by their mean
-transition score, instead of the sum of their scores. Our logic is that the
-problem is in the figure-of-merit used during decoding, not necessarily with the
-weights assigned by the model.
+We adopt a simpler solution.  We normalise the figure-of-merit, which is used to rank
+candidates in the beam, by the length of the candidates' transition history. The
+new figure-of-merit is the
+arithmetic mean of the candidate's transition scores.
 
 Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
 was less effective than their solution. We found the opposite: the features
@@ -793,13 +868,40 @@ associated with the \textsc{idle} transition were uninformative (the state is at
 termination, so the stack and buffer are empty), and had nothing to do with how
 many edit transitions were earlier applied.
 
-This is also a good place to note the effect of the \textsc{edit} transition
-on the algorithm's worst-case time complexity. TODO: calculation. We note that
-the issue is not of practical importance; our empirical parse times remain linear.
+\section{Part-of-speech tagging}
+
+In the absence of an established way of doing joint part-of-speech tagging and
+dependency parsing, we adopt the standard pipeline strategy.  Most transition-based
+parsers use a structured averaged perceptron model with beam-search for tagging,
+as this model achieves competitive accuracy and matches the standard dependency
+parsing architecture. Our tagger also uses this architecture.
+
+We performed some additional feature engineering for the tagger, in order to
+improve its accuracy given the lack of case distinctions and punctuation in
+the data. Our additional features use two sources of unsupervised information.
+First, we follow the suggestion of \citet{manning:11} in using Brown cluster
+features to improve the tagger's accuracy on unknown words. Second, we compensate
+for the lack of case distinctions by including features that ask what percentage
+of the time a word form was seen title-cased, upper-cased and lower-cased in the
+Google Web1T corpus. 
+
+Where most previous work uses cross-fold training for the tagger, to ensure that the
+parser is trained on tags that reflect run-time accuracies, we do online training
+of the tagger alongside the parser, using the current tagger model to produce
+tags during parser training.  This had no impact on parse accuracy, and made it
+slightly easier to develop our tagger alongside the parser.
+
+The tagger achieved 96.5\% accuracy on the development data, but when we ran our
+final test experiments, we found its accuracy had dropped to 96.0\%, indicating
+some over-fitting during our feature engineering.  On the development data,
+our parser accuracy improves by about 1\% when gold-standard tags are used.
 
 \section{Experiments}
 
-\subsection{Evaluating parse accuracy on disfluent text}
+We use the Switchboard portion of the Penn Treebank \citep{marcus:93}, as
+described in Section \ref{sec:swbd}, to train our joint parsing and disfluency
+models and evaluate them on dependency parsing and disfluency detection. The
+pre-processing and dependency conversion are described in Section~\ref{sec:deps}.
 
 Our parser evaluation is modelled on the \sparseval metric \citep{sparseval}.
 However, we wanted to use the Stanford dependency scheme, to keep the system
@@ -807,11 +909,33 @@ close to standard practice for Wall Street Journal dependency parsing, so we
 do not use the \sparseval tool itself.  Our evaluation script is distributed
 in the supplementary materials.
 
-We follow \sparseval in not excluding arcs from disfluent words in the parser
-evaluation.  Links from fluent words incorrectly marked disfluent are marked as
+We follow \sparseval in not including arcs to speech repairs or other disfluent
+words in the parser evaluation (i.e. we don't evaluate the heads of disfluent
+words).  Links to fluent words incorrectly marked as disfluent are counted as
 incorrect.
+%A small advantage of this evaluation is that systems are always
+%evaluated on the same number of arcs.  This allows us to report our accuracies
+%in the same format as the rest of the recent dependency parsing literature,
+%instead of introducing precision/recall/$F$-measure scores.
+
+We follow \citet{Johnson04a} in restricting our disfluency evaluation to speech
+repairs, which we identify as words that have a node labelled \textsc{edited}
+as an ancestor.  Unlike most other disfluency detection research, we train only
+on the \textsc{mrg} files, giving us TODO words of training data instead of
+the usual TODO.
+
+All parsing models were trained for 15 iterations, using the maximum violation
+update strategy described by \citet{huang:12}.  We found this to produce equivalent
+model scores to the standard early update strategy \citep{collins:02}, but with
+fewer training iterations.
+
+We test for statistical significance in our results by training 20 models for
+each experimental configuration, using different random seeds. The random seeds
+control how the sentences are shuffled during training, which the perceptron
+model is quite sensitive to.  We use the Wilcoxon non-parametric test.
 
 \subsection{Parsing with oracle disfluencies}
+
 \label{sec:oracle}
 This experiment investigates how much disfluencies disrupt parsing accuracy,
 by training and evaluating a parser on a version of Switchboard with oracle
@@ -827,8 +951,8 @@ that make it easy to put our joint model's parsing accuracy into context.
 
 We therefore compare our joint model to a pipeline approach, using a strong 
 syntax-based disfluency detection system.  We used the \citet{Johnson04a}
-noisy-channel model, with the \citet{Charniak01a} parser as a syntactic language
-model.  We chose this system because it is an extension of the \citet{Charniak01b}
+noisy-channel model, with the \citet{Charniak01b} parser as a syntactic language
+model.  We chose this system because it is an extension of the \citet{Charniak01a}
 boosting classifier, which is the only disfluency detection system studied as
 a pre-processor to a syntactic parser.  The accuracy of the model has improved
 since \citet{Johnson04a}, as it now includes the additional features described by
@@ -841,45 +965,14 @@ model.  A MaxEnt reranker then considers the channel model and language model sc
 in addition to features described by \citet{zwarts:11}. We then parse the string
 that results from omitting words marked as disfluent by top-ranked hypothesis.
 
-As complicated as this pipeline is, and as high-scoring as the disfluency detector
-is, the configuration is arguably still slightly unfair, even though it matches
-the architecture used by \citet{Charniak01a}. The parser has been
-trained on text with oracle pre-processing, but at run-time it is exposed to
-text with some disfluencies. The model would probably be more accurate if we
-introduced \emph{another} cross-fold training step, so that the parser is trained
-on text with some disfluencies.
-
-We consider that a subject for future work, because the natural extension of
-that approach is to adopt a form of `pipeline iteration'
-\citet{hollingshead:07}. One could just as easily use \emph{our} model as the
-disfluency detection pre-process, and chain together several iterations to
-successively clean the text.
-
-\subsection{Data set}
-
-We use the Switchboard portion of the Penn Treebank \citep{marcus:93} for our
-experiments, which consists of telephone conversations between strangers about
-an assigned topic.  Two annotation layers are provided: one for syntactic bracketing,
-and one for disfluencies.  The disfluency layer marks elements with
-little or no syntactic function, such as filled pauses and discourse markers,
-and annotates speech repairs using the \citet{shriberg:94} system of
-reparandum/interregnum/repair.
-
-The convention within the syntactic brackets is to cover speech-repairs with
-the node \textsc{edited}.  The complication is that the two layers were annotated
-separately, and do not always overlap, as the project was halted before they
-could be fully reconciled. This complicates comparison with previous work, as
-researchers interested in parsing have tended to use only the \textsc{edited}
-nodes as disfluency markers \citep{Charniak01a,jorgensen:07}, while those solely
-interested in disfluency detection have tended to use the richer annotations in
-the \textsc{dps} files.
-
-We found that following the \textsc{dps} file annotations led to bad
-gold-standard parses when the annotation disagreed with the \textsc{edited}
-nodes.  In the training data, TODO words are under \textsc{edited} nodes, and
-TODO of them are also marked as disfluent in the \textsc{dps} annotations
-imported into the \textsc{mrg} files. There are TODO words that the \textsc{dps}
-annotations mark as disfluent that are \emph{not} under \textsc{edited} nodes.
+One concern we had with this architecture was that the model is trained on text
+with oracle pre-processing, but is run on text that the pipeline has cleaned
+imperfectly.  Since cross-training the repairs pipeline is quite computationally
+expensive, as a quick test we ran a model trained with no disfluencies over text
+that had not been pre-processed at all.  This model was only 0.2\% less accurate
+than one trained on the disfluent text.  This convinced us that there would be
+little benefit in departing from the \citet{Charniak01a} architecture to do
+cross-fold training for the baseline pipeline model.
 
 \begin{table}
     \centering
@@ -887,15 +980,16 @@ annotations mark as disfluent that are \emph{not} under \textsc{edited} nodes.
     \begin{tabular}{l|rrr|rr}
         & P & R & F & \textsc{uas} & \textsc{las} \\
         \hline \hline
-        Parser      & 81.9 & 70.1 & 75.5 & 89.7  & 86.8 \\
-        +Clusters   & 81.5 & 70.7 & 75.7 & 89.8  & 86.8 \\
-        +Features   & 86.6 & 76.2 & 81.1 & 90.1  & 87.1 \\
-        +Transition & 91.9 & 80.0 & 85.6 & 90.6  & 87.5 \\
-        \hline
-        Pipe (Sec. \ref{sec:pipeline})  & 89.4 & 80.3 & 84.6 & 90.4 & 87.3 \\
-        \hline       
-        Oracle (Sec. \ref{sec:oracle})  & 100 & 100 & 100 & 91.7 & 88.5 \\
-        \hline
+                    &	P	&	R	&	F	&	U	&	L \\
+Beam parser$_{k=16}$ &	79.7	&	69.6	&	74.3	&	89.7	&	86.8 \\
++Clusters            &	79.7	&	69.9	&	74.5	&	89.8	&	86.9 \\
++Features            &	85.3	&	77.2	&	81.0	&	90.2	&	87.2 \\
++Transition          &	91.5	&	80.3	&	85.6	&	90.7	&	87.7 \\
+\hline
+Pipe (Sec. \ref{sec:pipeline})  & 89.4 & 80.3 & 84.6 & 90.5 & 87.4 \\
+\hline       
+Oracle (Sec. \ref{sec:oracle})  & 100 & 100 & 100 & 91.6    & 88.5 \\
+\hline
     \end{tabular}
 \caption{Development accuracies for disfluency detection and parse accuracy.}
 \end{table}
@@ -903,6 +997,7 @@ annotations mark as disfluent that are \emph{not} under \textsc{edited} nodes.
 
 
 \section{Results}
+\label{sec:results}
 
 \begin{table}
 \centering
@@ -939,60 +1034,90 @@ additional features and the non-monotonic Edit transition.\label{tab:parseval}}
 
 \section{Analysis of Edit behaviour}
 
-Over Section 24, we predict 2,459 Edit transitions, which together marked 2,702
+In order to understand how the parser applies the \edittrans transition, we
+collected some additional statistics over the development data.  Unlike our
+parse and disfluency results, we only examined the output of one model, trained
+with a single random seed, as robustness was less important.
+
+Over the development data, the parser predicted 2,459 \edittrans transitions,
+which together marked 2,702
 words disfluent (2,462 correctly). So the model largely assigns disfluency labels
 word-by-word, only sometimes marking rightward branches disfluent.
 
-For the 2,459 Edit transitions, in 2,309 of them S0 was disfluent (for this
-statistic, there might be some of its rightward subtree that is actually fluent,
-that will be marked as wrong here. We don't evaluate that here.)
-
 Of the 2,459 Edit transitions, 1554 had no leftward children, 512 returned one word,
 and another 393 together returned a total of 1080 words to the stack. Looked at
-another way, 1,592 leftward children were returned to the stack, from a total of
-905 Edit transitions.
+another way, 1,592 leftward children were returned to the stack, from
+905/2,459 Edit transitions.
 
 Of the 1,592 instances of a word being returned to the stack, 121 were cases where
 the same word was returned two or more times --- i.e. 1,471 tokens were returned
 to the stack at least once, for a total of 1,592 returnings.
-
 The 1,471 tokens break down as follows:
+
 \begin{itemize}
     \item 607 were subsequently marked as disfluent
-    \item 864 became left-children of a word marked fluent.
+        \begin{itemize}
+            \item 562 true positive
+            \item 45 false positive
+        \end{itemize}
+    \item 864 were marked fluent.
+        \begin{itemize}
+            \item 699 were attached to their correct head
+            \item 165 were attached incorrectly
+            \begin{itemize}
+                \item 26 were false-negative disfluencies
+                \item 139 were just parse errors
+            \end{itemize}
+        \end{itemize}
 \end{itemize}
 
-Of the 607 marked disfluent:
-\begin{itemize}
-    \item 562 were true positives
-    \item 45 were false positives
-\end{itemize}
-
-Of the 864 re-integrated into the tree:
-\begin{itemize}
-    \item 699 were attached to their correct head
-    \item 165 were attached incorrectly
-\end{itemize}
-
-Of the 165 mistakes:
-\begin{itemize}
-    \item 26 were false-negative disfluencies
-    \item 139 were just parse errors
-\end{itemize}
-
-Some conclusions:
-\begin{itemize}
-\item The split for what we should do with the left children is quite even, so a
-  heuristic would probably not perform well
-\item 26 false negative disfluencies means that returning to the stack introduces
-  few recall errors. If the word is disfluent, the model is good at making
-  that separate judgment.
-\item The precision of marking words that were returned to the stack as disfluent
-  is similar to the overall precision.
-\end{itemize}
+The first thing we take away from these figures is that the case that the \edittrans
+transition is designed to cover is quite common, relative to the number of edited
+words.  The parser made 864 provisional left-arcs, for 2,702 words marked as 
+edits.  We also note that even though the parser must make multiple decisions for
+those words (by returning them to the stack), it has high recall at marking these
+words disfluent (only 26 false negatives), and its precision is similar to
+the parser's overall disfluency detection score.
 
 \section{Related Work}
 
+The most prominent joint model of parsing and disfluency detection that we are
+aware of is from \citet{hale:06}, who investigated the effect of syntactic and
+prosodic cues on a baseline disfluency detection system.  Their work is most
+closely connected to psycholinguistics and corpus linguistics research on
+disfluencies, such as \citet{shriberg:98}. The systems \citeauthor{hale:06}
+implemented range in disfluency accuracy from
+18-41.7\% $F$-measure, using gold \textsc{pos} tags. They also provide results
+from the  \citet{Charniak01a} parser on edit detection, and improved its score
+from 57.6 to 70.0.
+
+We follow disfluency detection task definition set out by 
+\citet{Charniak01b}, who describe the first `pipeline' architecture for parsing
+disfluent speech.  The successor
+demonstrated the importance of syntactic features for disfluency detection
+\citep{Johnson04a}.
+
+Despite this, most subsequent work has used sequence models, rather than syntactic
+parsers.  One reason for this is that most applications of these models will be
+over unsegmented text, as segmenting utterances into linguistic units resembling
+clauses or sentences is a difficult unsolved problem.  State-of-the-art systems
+currently mark segment boundaries at TODO-TODO\%.
+
+We consider the most promising aspect of our system to be that it is naturally
+incremental, so it should be straightforward to extend the system to operate
+on unsegmented text in subsequent work.  Due to its use of syntactic features,
+from the joint model, the system is substantially more accurate than the previous
+state-of-the-art in incremental disfluency detection, 77\% \citep{zwarts:10}.
+
+Our modified transition system is reminiscent
+of the transition system described by \citet{honnibal:13}, in that it is
+non-monotonic.  The non-monotonic behaviour allows the parser to build a graph of dependencies,
+even though the final parse is a projective tree. There are thus natural connections
+between our transition system and the \textsc{dag}-parsing system of \citet{sagae:08}.
+A related idea would be to model the `rough copy' dependencies described by 
+\citet{Johnson04a} with a non-projective transition system, either by allowing
+arcs between non-adjacent nodes \citep{cohen:11} or by doing online-reordering
+\citep{nivre:09}.
 
 \section{Conclusion}
 
