@@ -781,6 +781,15 @@ Recent work has shown that this can be advantageous
 \citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
 sometimes be delayed until more information is available.
 
+For instance, given the sentence in Figure \ref{fig:rectangle}, imagine that
+the parser reaches the configuration $\mathrm{Pass} | \mathrm{the} | \mathrm{red}, \mathrm{rectangle} | \beta, \mathrm{Pass} \rightarrow \mathrm{me}, \empty$. That is, \emph{rectangle}
+is at the head of the buffer, with three words on the stack, one (correct) dependency
+created, and no words marked disfluent. From this configuration, there are multiple
+equally `correct' actions. The Edit transition is correct, because \emph{red}
+is disfluent; but both the Left-Arc and the Right-Arc are also correct,
+in that there are continuations from them that lead to a fully correct parse
+tree and disfluency analysis.
+
 To exploit the spurious ambiguity, we use a \emph{dynamic oracle} to
 label our training examples \citet{goldberg:12}.
 A dynamic oracle is a function that determines the highest-scoring analysis
