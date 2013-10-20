@@ -105,7 +105,7 @@ additions improve parse accuracy by 1\%.  The model runs in expected linear time
 and processes over 700 sentences a second.
 
 For comparison, we evaluated two pipeline systems, using state-of-the-art disfluency
-detectors.  The joint model achieved state-of-the-art results on both tasks,
+detectors.  The joint model performed better on both tasks,
 with a parse accuracy of 91.5\% and 84.0\% accuracy at disfluency detection.
 
 \end{abstract}
@@ -141,27 +141,27 @@ against a pipeline architecture \citep{jorgensen:07,rasooli:13}.  We go substant
 beyond these pilot studies, and present a system that compares favourably to a
 pipeline consisting of state-of-the-art components.
 
-Our parser largely follows the design of \citet{zhang:cl11}. We use a global averaged
+Our parser largely follows the design of \citet{zhang:cl11}. We use a structured averaged
 perceptron model \citep{collins:02}, with beam-search decoding. Our feature set
 is based on \citet{zhang:cl11}, and our transition-system is based on the arc-eager
 system of \citet{nivre:03}.
 
 We exploit the ease with which this model can incorporate arbitrary features,
 and design a set of disfluency features that capture the
-`rough copy' structure of some speech repairs, which motivates the
+`rough copy' structure of some speech repairs, which motivated the
 \citet{Johnson04a} noisy channel model.
 Our second improvement is a novel non-monotonic extension to the transition
 system. It allows the parser to delete edges it had previously created, in order
 to deal with speech repairs where the head of an apparent constituent is disfluent,
-but some of its apparent leftward children are not.  Words detected as
-disfluencies are disconnected from the parse of the fluent sentence,
+but some of its apparent leftward children are not (e.g. \emph{pass the salt uh pepper}).
+Words detected as disfluencies are disconnected from the parse of the fluent sentence,
 which is scored with the Sparseval measure \citep{sparseval}.
 
 Our main comparison is against two pipeline systems, using the two current 
 state-of-the-art disfluency detections systems: the \citet{Johnson04a} noisy-channel
 model, and the \citet{qian:13} cascade of sequence taggers.  The joint model
 compared favourably to the pipeline parsers at both tasks, with an unlabelled
-attachment score of 91.5\% and 84.0\% accuracy at detecting speech repairs.
+attachment score of 91.5\%, and 84.0\% accuracy at detecting speech repairs.
 The system is also quite efficient, and has quite promising future prospects.
 Because the parser is incremental, it should be well suited
 to speech-recogniser output and other unsegmented text.
@@ -186,7 +186,7 @@ to speech-recogniser output and other unsegmented text.
 
 A transition-based parser predicts the syntactic structure of a sentence incrementally,
 by making a sequence of classification decisions.  We follow the architecture of
-\citet{zhang:cl11}, who use beam-search for decoding, and a global averaged
+\citet{zhang:cl11}, who use beam-search for decoding, and a structured averaged
 perceptron for training.  Despite its simplicity, this type of parser
 has produced highly competitive results on the Wall Street Journal: with the
 extended feature set described by \citet{zhang:11}, it achieves 93.5\%
@@ -195,11 +195,10 @@ the constituency trees produced by the \citet{Charniak05a} reranking parser
 results in similar accuracy.
 
 Briefly, the transition-based parser consists of a configuration (or `state') which
-is sequentially
-manipulated by a set of possible transitions.  A state is a triple
-$c = (\sigma, \beta, A)$, where
-$\sigma$ and $\beta$ are disjoint sets of words termed the \emph{stack} and
-\emph{buffer} respectively, and $A$ is the set of dependency arcs.
+is sequentially manipulated by a set of possible transitions.  A state is a triple
+$c = (\sigma, \beta, A)$, where $\sigma$ and $\beta$ are disjoint sets of words
+termed the \emph{stack} and \emph{buffer} respectively, and $A$ is the set of
+dependency arcs.
 
 We use the arc-eager transition system \citep{nivre:03,nivre:cl}, which consists
 of four parsing actions:  \textbf{S}hift, \textbf{L}eft-Arc,
@@ -301,15 +300,15 @@ grand-parent (\szeroH, \szeroHH), the first word of the buffer and its two leftm
 children (\nzero, \nzeroL, \nzeroLL), and the next two words of the buffer (N1, N2).
 
 Atomic features consist of the word, part-of- speech tag, or dependency label
-for these tokens, and feature templates often consist of multiple feature atoms
-in combination.  The feature set also considers the string-distance between \szero
+for these tokens; and multiple feature atoms are often combined for feature
+templates. The feature set also considers the string-distance between \szero
 and \nzero, and the left and right valencies
 (total number of children) for \szero and \nzero, as well as the set of dependency
 labels assigned in their subtrees. We restrict the label set features
 to the first and last 2 children for implementation efficiency, as we found this
 had no effect on accuracy. Numeric features (for distance and valency) are binned
 with the function $\lambda x: \max(x, 5)$.
-The only bi-lexical feature template pairs
+There is only one bi-lexical feature template, which pairs
 the words of \szero and \nzero.
 There are also ten tri-tag templates, which consider the
 \pos tag of \szero, \nzero, and various other context tokens.
@@ -336,8 +335,8 @@ seem to have found similar results (personal communication).
 
 Since a Brown cluster mapping computed by \citet{liang:05} is easily
 available\footnote{\url{www.metaoptimize.com/projects/wordreps}}, the features
-are very simple to implement and cheap to compute, so we see little reason not to include them
-in the parser.
+are very simple to implement and cheap to compute.
+%so we see little reason not to include them in the parser.
 
 Our templates follow \citet{koo:10} in including features for full clusters as
 well as cluster prefixes. We adapt their templates to transition-based parsing
@@ -346,12 +345,13 @@ of the buffer'. The exact templates can be found in the supplementary material.
 
 The Brown cluster features are used in our `baseline' parser, and in the parsers
 we use as part of our pipeline systems. They improved development set accuracy
-by 0.4\%.
+by 0.4\%.  We experimented with the other feature sets in these parsers, but found
+that they did not improve accuracy on fluent text.
 
 \subsection{Rough copy features}
 
-\citet{Johnson04a} point out that in speech repairs, the repair is often a rough
-copy of the reparandum.  The simplest case of this is where the repair is a single
+\citet{Johnson04a} point out that in speech repairs, the repair is often a `rough
+copy' of the reparandum.  The simplest case of this is where the repair is a single
 word repetition. In more complex cases, some of the wording or grammatical
 structure will be the same, and the rest will be different.  
 It is common for the repair to differ from the reparandum by insertion, deletion
@@ -361,16 +361,16 @@ To capture this regularity, we first extend the feature-set to track three new
 \emph{context tokens}:\footnote{As is common
 in this type of parser, our implementation has a number of vectors for properties
 that are defined before parsing, such as word forms, \textsc{pos} tags, Brown
-clusters, etc. The index allows features considering any of these
-properties to be computed.}
+clusters, etc. A context token is an index into these vectors, allowing
+features considering these properties to be computed.}
 \begin{enumerate}
     \itemsep0em
-    \item \szeroRedge : The rightmost edge of \szero 's descendants;
-    \item \szeroLedge : The leftmost edge of \szero 's descendants;
-    \item \nzeroLedge : The leftmost edge of \nzero 's descendants.
+    \item \szeroRedge : The rightmost edge of \szero  descendants;
+    \item \szeroLedge : The leftmost edge of \szero  descendants;
+    \item \nzeroLedge : The leftmost edge of \nzero  descendants.
 \end{enumerate}
 
-The \emph{yield} of a word is the span of words headed by it.  If a word has
+If a word has
 no leftward children, it will be its own left-edge, and similarly it will be
 its own rightward edge if it has no rightward children. Note that the token
 \szeroRedge is necessarily immediately before \nzeroLedge, unless some of the
@@ -383,8 +383,8 @@ and right yield edges, and update them during parsing.  To do this, we exploit
 the fact that our features only consider the yield-edges of the tokens currently
 at S0 and N0, as disfluency processing takes place between these two tokens.
 
-We use the yield edge tokens to calculate a simple kind of rough-copy feature
-using the \szeroLedge and \nzeroLedge tokens.  The features are:
+We calculate a simple kind of rough-copy feature using the \szeroLedge and
+\nzeroLedge tokens:
 
 \begin{itemize}
     \itemsep0em
@@ -463,14 +463,14 @@ reparandum {\em rectangle}.  An incremental parser could easily become
 `garden-pathed' and attach the repair {\em square} to the preceding words,
 constructing the dependencies shown dotted in Figure~3.  Rather than attempting
 to devise an incremental model that avoids constructing such dependencies, we
-allow the parser to construct these dependencies and correct any that are erroneous
-downstream, when the word {\em rectangle} is seen.
+allow the parser to construct these dependencies and later correct any that seem
+erroneous, once the extent of the speech repair has been seen.
 
 Psycholinguistic models of human sentence processing have long posited
 \emph{repair} mechanisms \citep{FrazierRayner1982}.  Recently, \citet{honnibal:13}
 showed that a limited amount of `non-monotonic' behaviour can 
 improve an incremental parser's accuracy.
-We here introduce a non-monotonic transition, \textsc{edit}, for speech
+We here introduce a non-monotonic transition, \textsc{Edit}, for speech
 repairs. 
 
 %
@@ -649,21 +649,18 @@ The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
 disfluent, along with its rightward descendents --- i.e., all words in the
 sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
 restores the words preceding and governed by $i$ to the stack:
-
 \begin{equation}
     (\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1 | ... | x_n, j | \beta,A',D')\;\;\;(E)
     \nonumber
 \end{equation}
-
-Where:
-
+Where 
 \begin{itemize}
+    \itemsep0em
     \item $A \setminus A' = \{x \rightarrow y : x = i \cap y = i \}$
     \item $D' \setminus D = \{i...j-1\}$;
 \item  and $x_1...x_n$ is the ordered sequence of words preceding and formerly governed
 by $i$.
 \end{itemize}
-
 In other words, the word on top of the stack and its \emph{rightward descendents}
 are all marked as disfluent, and the stack is popped. We then restore to the stack
 the \emph{immediate left descendents} of the word that was formerly on top of the
@@ -673,7 +670,7 @@ two can be implemented with a single vector.
 
 Why revisit the leftward children, but not the right? The logic here is that we
 are concerned about dependencies which might be mirrored between the reparandum
-and the repair. The right-ward subtree of the disfluency might well be incorrect,
+and the repair. The rightward subtree of the disfluency might well be incorrect,
 but if it is, it would still be incorrect if the word on top of the stack weren't
 disfluent --– so we regard these as parsing errors that we will train our model
 to avoid. In contrast, avoiding the leftward arcs would require the parser to
@@ -769,65 +766,57 @@ is included in the supplementary materials.
 \subsection{Dynamic oracle training}
 \label{sec:dynoracle}
 
-An essential component when training a transition-based parser is an oracle which,
-given a gold-standard tree, dictates the sequence of moves a parser should make
-in order to derive it. Traditionally, these oracles are defined as functions from
-trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
-even if more than one sequence of actions derives the gold tree. During training,
-the model suffers a loss if its prediction departs from this single 
-sequence, even if it lies on an alternate path to the gold-standard tree.
 
-The oracle that \citet{goldberg:12} define, which they term a \emph{dynamic} oracle,
-instead calculates how many gold-standard arcs will be newly unreachable after a
-given action has been performed. This allows the model to be trained with a
-loss function that refers to the dependency structure, instead of the transition
-history.  
+%An essential component when training a transition-based parser is an oracle which,
+%given a gold-standard tree, dictates the sequence of moves a parser should make
+%in order to derive it. Traditionally, these oracles are defined as functions from
+%trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
+%even if more than one sequence of actions derives the gold tree. During training,
+%the model suffers a loss if its prediction departs from this single 
+%sequence, even if it lies on an alternate path to the gold-standard tree.
 
-Another way to look at this is to say that the derivation structure is left latent,
-instead of being learnt from direct supervision.  
-We therefore adapt the learning
-algorithm of \citet{zettlemoyer:07}, in order to use the dynamic oracle with
-a global model, which has not yet been done.  The result is essentially an
-online Viterbi approximation to the \textsc{em}-based
-\textsc{MaxEnt} for partially labelled data described by \citep{riezler:02}.
+Our non-monotonic transition system introduces substantial \emph{spurious ambiguity}:
+the gold-standard parse can be derived via many different transition sequences.
+Recent work has shown that this can be advantageous
+\citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
+sometimes be delayed until more information is available.
 
-Briefly, \citeauthor{zettlemoyer:07} train a global perceptron model to predict
-lambda calculus representations from sentence strings, with Combinatory
-Categorial Grammar derivations as a latent structure.  Ignoring the parts of
-their algorithm which deal with the lexicon, and generalising a little, the algorithm is:
+To exploit the spurious ambiguity, we use a \emph{dynamic oracle} to
+label our training examples \citet{goldberg:12}.
+A dynamic oracle is a function that determines the highest-scoring analysis
+reachable from a given configuration.  \citet{goldberg:12} use it to
+label examples for their greedy local model by determining which actions will
+render one or more gold-standard dependencies newly unreachable.  We modify their
+algorithm for use with the structured perceptron model with beam-search decoding.
+
+For each sentence, we maintain two priority queues of
+$\langle \mathrm{score}, \mathrm{configuration} \rangle$ tuples: a prediction
+beam $C$ and a gold-standard beam $G$.
+At each step of the parsing process, we search for the \emph{maximum violation}
+\citep{huang:12}, which we track in another priority queue, $V$:
 
 \begin{enumerate}
-\item Search for the model's best hypothesis given the input.
-\item If the hypothesis satisfies the supervision constraints, move on to the
-      next example.
-\item Otherwise, search again, this time constraining the search to ensure the
-    candidate \emph{will} satisfy the supervision criteria.
-\item Perform a weight update for the model hypothesis and the gold-standard
-      candidate.
+\itemsep0em
+\item Extend $C_1...C_k$ with every action, pushing them to
+      priority queue $C'$. Replace $C$ with $C'$.
+\item Extend $G_1...G_k$ with every action that results in a
+      configuration from which the gold-standard analysis can be reached, pushing
+      them to priority queue $G'$. Replace $G$ with $G'$.
+  \item If the gold-standard analysis cannot be reached from $C_{1,2}$, 
+    set $\delta = C_{1,1} - G_{1,1}$. If $\delta \ge 0$, push the triple
+    $\langle \delta, C_{1,2}, G_{1,2} \rangle$ to the priority queue $V$.
 \end{enumerate}
 
-For us, the supervision constraint is that each action must be zero-cost.  So,
-we first run our beam-search decoder, just as at parse time (Step 1),
-except that we consult the gold-standard dependencies and disfluency information
-to compute a cost for each candidate in the beam, via the dynamic oracle (for Step 2).
-If the top-ranked derivation is zero-cost, we perform no update (Step 2).
-Otherwise, we search again, but
-ensure that no actions with non-zero cost are introduced into the beam (Step 3).
-Our weight update is the standard one, from \citet{collins:02}: count how often
-each feature/class pair occurs in the gold-standard and predicted sequences,
-and update the weights by their difference.
+The maximum violation update strategy is an improvement on the early update
+strategy of \citet{collins:02}.\footnote{Its advantage is mostly in efficiency:
+the two update strategies result in similar accuracy, but \emph{maximum violation}
+requires fewer training iterations, because its updates are over longer sequences.}
+Instead of searching for the point where the
+gold-standard analysis falls out of the prediction beam, we find the point
+where the divergence in scores is highest. Having found the \emph{maximum violation}
+$V$, we perform a standard structured perceptron weight update over the gold and
+predicted state sequences.
 
-Note that neither search process is exact, and in fact we may find a gold-standard
-candidate that scores higher than the predicted candidate, if the gold candidate
-were pruned during search.  If handled naively, this would trigger what \citet{huang:12}
-refer to as an `invalid update': even though the model already scores the gold
-candidate higher, its weights will be updated, due to the search error. The early-update
-strategy of \citet{collins:02} is one way to avoid this: the update is restricted
-to the states up to and including the one where the gold candidate was pruned.
-We follow the suggestion of \citet{huang:12}, and instead update over states up to
-and including the one with the biggest divergence in score between the gold and
-predicted parses. This \emph{maximum violation} strategy produces similar models,
-but requires fewer training iterations.
 
 \subsection{Path length normalisation}
 
