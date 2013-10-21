@@ -289,6 +289,402 @@ never having any children. This makes it easy to unmerge the tokens deterministi
 after parsing:
 all incoming and outgoing arcs will point to \emph{know} or \emph{mean}.
 
+\section{A non-monotonic Edit transition}
+\label{sec:edittrans}
+
+One of the reasons disfluent sentences are hard to parse is that there often appear
+to be syntactic relationships between words in the reparandum and the fluent sentence.
+When these relations are added to the dependencies between fluent words,
+the resulting structure is not necessarily a projective tree.
+
+
+Figure 3 shows a simple example, where the repair {\em square} replaces the
+reparandum {\em rectangle}.  An incremental parser could easily become
+`garden-pathed' and attach the repair {\em square} to the preceding words,
+constructing the dependencies shown dotted in Figure~3.  Rather than attempting
+to devise an incremental model that avoids constructing such dependencies, we
+allow the parser to construct these dependencies and later correct any that seem
+erroneous, once the extent of the speech repair has been seen.
+
+Psycholinguistic models of human sentence processing have long posited
+\emph{repair} mechanisms \citep{FrazierRayner1982}.  Recently, \citet{honnibal:13}
+showed that a limited amount of `non-monotonic' behaviour can 
+improve an incremental parser's accuracy.
+We here introduce a non-monotonic transition, \textsc{Edit}, for speech
+repairs. 
+
+\begin{figure}
+    \small
+\begin{dependency}[theme=simple, segmented edge]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    Pass \& me \& the \& red \& rectangle \& uh I mean \& square \\
+    \end{deptext}
+    \depedge[edge unit distance=0.9ex]{1}{2}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{3}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{4}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{1}{5}{}
+    \depedge[edge unit distance=0.7ex]{7}{3}{}
+    \depedge[edge unit distance=0.7ex]{7}{4}{}
+    \depedge[edge unit distance=0.6ex]{1}{7}{}
+    \end{dependency}
+    \caption{\small Example where `temporary edges' between the reparandum and the
+    fluent sentence complicate parsing. In order to learn a projective tree
+    for the sentence, the parser would have to learn not to assign the dotted
+    edges below. We instead make the parsing process non-monotonic.
+\label{fig:rectangle}}
+\end{figure}
+
+
+The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
+disfluent, along with its rightward descendents --- i.e., all words in the
+sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
+restores the words both preceding and formerly governed by $i$ to the stack:
+\begin{equation}
+    (\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1 | ... | x_n, j | \beta,A',D')\;\;\;(E)
+    \nonumber
+\end{equation}
+Where 
+\begin{itemize}
+    \itemsep0em
+    \item $A \setminus A' = \{x \rightarrow y : x = i \cup y = i, x \ne y \}$
+    \item $D' \setminus D = \{i...j-1\}$;
+\item  and $x_1...x_n$ is the ordered sequence of words both preceding and formerly governed
+by $i$.
+\end{itemize}
+In other words, the word on top of the stack and its \emph{rightward descendents}
+are all marked as disfluent, and the stack is popped. We then restore to the stack
+the leftward children of the word that was formerly on top of the
+stack. All dependencies to and from words marked disfluent are deleted. 
+This means that the members of $D$ cannot have any dependencies in $A$, so the
+two can be implemented with a single vector.
+
+Why revisit the leftward children, but not the right? The logic here is that we
+are concerned about dependencies which might be mirrored between the reparandum
+and the repair. The rightward subtree of the disfluency might well be incorrect,
+but if it is, it would still be incorrect if the word on top of the stack weren't
+disfluent --– so we regard these as parsing errors that we will train our model
+to avoid. In contrast, avoiding the Left-Arc transitions would require the parser to
+predict that the head is disfluent, when it has not necessarily seen any evidence
+indicating that.
+
+The transition is \emph{non-monotonic} in the sense that it can delete dependencies
+that the parser had previously proposed, and replace tokens onto the stack for
+further processing. 
+A worked example featuring several applications of the \textsc{edit} transition
+is included in the supplementary materials.
+
+\subsection{Worked example}
+
+Figure \ref{fig:bankrupt} shows a gold-standard derivation for a disfluent sentence
+from the development data.  The Edit transition is particularly useful for this
+type of sentence, where the verb is disfluent but the subject is not.
+
+Line 1 shows the state resulting from the initial Shift action.  In the subsequet
+states, \emph{His} is Left-Arced to \emph{company}, which is then Shifted onto
+the stack, and Left-Arced to the disfluent verb \emph{went} in Line 4.
+
+The dependency between \emph{went} and \emph{company} is not part of the gold-standard,
+because \emph{went} is disfluent.  The correct governor of \emph{company} is the
+second \emph{went} in the sentence.  The Left-Arc move in Line 4 can still
+be considered correct, however, because the gold-standard analysis is still
+derivable from the resulting configuration, via the Edit transition.
+Another non-gold edge is created in Line 6, between \emph{broke} and \emph{went},
+before \emph{broke} is Reduced from the stack in Line 7.
+
+Lines 9 and 10 show the states before and after of the Edit transition. The word
+on top of the stack in Line 9, \emph{went}, has one leftward child, and one
+rightward child.  After the Edit transition is applied, \emph{went} and its 
+rightward child \emph{broke} are both marked disfluent, and \emph{company}
+is returned to the stack.  All arcs to and from \emph{went} and \emph{broke}
+are deleted.
+
+Parsing then proceeds as normal, with the correct governor of \emph{company}
+being assigned by the Left-Arc in Line 11, and \emph{bankrupt} being Right-Arced
+to \emph{went} in Line 12.  To conserve space, we have omitted the dummy
+\textsc{Root} token, which is placed at the end of the sentence, following
+the suggestion of \citet{ballesteros:13}.  The final action will be a Left-Arc
+from the \textsc{Root} token to \emph{went}.
+
+\begin{figure}
+\small
+%\centering
+\begin{tabular}{l}
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    1. $S$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\wordgroup{1}{2}{2}{}
+\deproot[edge height=0.3cm, ultra thick]{3}{}
+\end{dependency} \\[-1ex]
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    2. $L$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\deproot[edge height=0.3cm, ultra thick]{3}{}
+\end{dependency} \\[-1ex]
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    3. $S$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\wordgroup{1}{3}{3}{}
+\deproot[edge height=0.3cm, ultra thick]{4}{}
+\end{dependency} \\[-1ex]
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    4. $L$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\deproot[edge height=0.3cm, ultra thick]{4}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    5. $S$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\wordgroup{1}{4}{4}{}
+\deproot[edge height=0.3cm, ultra thick]{5}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    6. $R$ \&    His \& company \& went \& broke \& i \_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\wordgroup{1}{4}{4}{}
+\wordgroup{1}{5}{5}{}
+\deproot[edge height=0.3cm, ultra thick]{6}{}
+\end{dependency} \\[-1ex]
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    7. $D$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\wordgroup{1}{4}{4}{}
+\deproot[edge height=0.3cm, ultra thick]{6}{}
+\end{dependency} \\[-1ex]
+
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    8. $S$ \&    His \& company \& went \& broke \& i \_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\wordgroup{1}{4}{4}{}
+\wordgroup{1}{6}{6}{}
+\deproot[edge height=0.3cm, ultra thick]{7}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    9. $L$ \&    His \& company \& went \& broke \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\wordgroup{1}{4}{4}{}
+\deproot[edge height=0.3cm, ultra thick]{7}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    10. \textbf{E} \&    His \& company \& \cancel{went} \& \cancel{broke} \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{7}{6}{}
+\wordgroup{1}{3}{3}{}
+\deproot[edge height=0.3cm, ultra thick]{7}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    11. $L$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{7}{6}{}
+\depedge[edge height=0.8em]{7}{3}{}
+\deproot[edge height=0.3cm, ultra thick]{7}{}
+\end{dependency} \\[-1ex]
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    12. $S$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{7}{6}{}
+\depedge[edge height=0.8em]{7}{3}{}
+\wordgroup{1}{7}{7}{}
+\deproot[edge height=0.3cm, ultra thick]{8}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    12. $R$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{7}{6}{}
+\depedge[edge height=0.8em]{7}{3}{}
+\depedge{7}{8}{}
+\wordgroup{1}{7}{7}{}
+\wordgroup{1}{8}{8}{}
+\end{dependency} \\[-1ex]
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.055cm, row sep=.1ex]
+    13. $D$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i\_mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{7}{6}{}
+\depedge[edge height=0.8em]{7}{3}{}
+\depedge{7}{8}{}
+\wordgroup{1}{7}{7}{}
+\end{dependency} \\[-1ex]
+\end{tabular}
+\caption{\small A gold-standard transition sequence using our \edittrans transition.
+Each line specifies an action and shows the state resulting from it. Words on the stack
+are circled, and the arrow indicates the start of the buffer. Disfluent
+words are struck-through.
+\label{fig:bankrupt}}
+
+\end{figure}
+
+
+\subsection{Dynamic oracle training}
+\label{sec:dynoracle}
+
+
+%An essential component when training a transition-based parser is an oracle which,
+%given a gold-standard tree, dictates the sequence of moves a parser should make
+%in order to derive it. Traditionally, these oracles are defined as functions from
+%trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
+%even if more than one sequence of actions derives the gold tree. During training,
+%the model suffers a loss if its prediction departs from this single 
+%sequence, even if it lies on an alternate path to the gold-standard tree.
+
+Our non-monotonic transition system introduces substantial \emph{spurious ambiguity}:
+the gold-standard parse can be derived via many different transition sequences.
+Recent work has shown that this can be advantageous
+\citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
+sometimes be delayed until more information is available.
+
+For instance, given the sentence in Figure \ref{fig:rectangle}, imagine that
+the parser reaches the configuration $\mathrm{Pass} | \mathrm{the} | \mathrm{red}, \mathrm{rectangle} | \beta, A = \{ \mathrm{Pass} \rightarrow \mathrm{me} \}, D = \emptyset$. That is, \emph{rectangle}
+is at the head of the buffer, with three words on the stack, one (correct) dependency,
+and no disfluent words.
+
+From this configuration, there are multiple actions that could be considered
+`correct', in the sense that they do not exclude the gold-standard analysis.
+The Edit transition is correct because \emph{red} is disfluent, but the
+Left-Arc and even the Right-Arc are also correct, in that there are continuations
+from them that lead to the fully correct parse tree and disfluency analysis.
+
+We regard all transition sequences that can result in the correct analysis as
+equally valid, and want to avoid stipulating one of them during training.  
+We achieve this by following \citet{goldberg:12} in using a
+\emph{dynamic oracle} to create partially labelled training data. 
+A dynamic oracle is a function that determines the highest-scoring analysis reachable
+from a given configuration, which makes it easy to calculate the cost of applying
+an action to a configuration.  Our training data is \emph{partially} labelled
+in the sense that there can be multiple zero-cost actions for a configuration.
+
+\citet{goldberg:12} describe how a local model can be trained using a dynamic
+oracle.  We adapt their algorithm for the structured perceptron with beam-search
+decoding as follows.
+
+For each sentence, we maintain two priority queues of
+$\langle \mathrm{score}, \mathrm{configuration} \rangle$ tuples: a prediction
+beam $C$ and a gold-standard beam $G$.
+At each step of the parsing process, we search for the \emph{maximum violation}
+\citep{huang:12}, which we track in another priority queue, $V$:
+
+\begin{enumerate}
+\itemsep0em
+\item Extend $C_1...C_k$ with every action, pushing them to
+      priority queue $C'$. Replace $C$ with $C'$.
+\item Extend $G_1...G_k$ with every action that results in a
+      configuration from which the gold-standard analysis can be reached, pushing
+      them to priority queue $G'$. Replace $G$ with $G'$.
+  \item If the gold-standard analysis cannot be reached from $C_{1,2}$, 
+    set $\delta = C_{1,1} - G_{1,1}$. If $\delta \ge 0$, push the triple
+    $\langle \delta, C_{1,2}, G_{1,2} \rangle$ to the priority queue $V$.
+\end{enumerate}
+
+Once parsing terminates, we perform a standard structured perceptron update
+with the gold and predicted candidates at $V_1$.
+
+The maximum violation update strategy is an improvement on the early update
+strategy of \citet{collins:02}.\footnote{Its advantage is mostly in efficiency:
+the two update strategies result in similar accuracy, but \emph{maximum violation}
+requires fewer training iterations, because its updates are over longer sequences.}
+Instead of searching for the point where the
+gold-standard analysis falls out of the prediction beam, we find the point
+where the divergence in scores is highest.
+
+%Having found the \emph{maximum violation}
+%$V$, we perform a standard structured perceptron weight update over the gold and
+%predicted state sequences.
+
+
+\subsection{Path length normalisation}
+
+One problem introduced by the \textsc{edit} transition is that the number of
+actionss applied to a sentence is no longer constant --- it is no longer guaranteed
+to be $2n-1$, for a sentence of length $n$. When the \textsc{edit} transition is
+applied to a word with leftward children, those children are returned to the stack,
+and processed again.  This has little to no impact on the algorithm's empirical
+efficiency, although worst-case complexity is no longer linear, but it does
+pose a problem for decoding.
+
+The perceptron model tends to assign
+high scores to its top prediction.\footnote{Recall that each training instance
+involves adding 1.0 to the weights for the correct class, and -1.0 to the weights
+for the predicted class, over several iterations. The correct class stays the
+same, while the predictions may vary, so the negative weight tends to be split
+among multiple classes. This is why the top prediction on an instance almost
+always has a high positive weight.}
+We thus observed a problem when comparing paths of different lengths, at the end
+of the sentence. Paths that included \textsc{edit} transitions were longer,
+so the sum of their scores tended to be higher.
+
+The same problem has been observed during incremental \textsc{pcfg} parsing,
+by \citet{zhang:13}.  They introduce an additional transition, \textsc{idle},
+to ensure that paths are the same length. So long as one candidate in the beam
+is still being processed, all other candidates apply the \textsc{idle} transition.
+
+We adopt a simpler solution.  We normalise the figure-of-merit, which is used to rank
+candidates in the beam, by the length of the candidates' transition history. The
+new figure-of-merit is the
+arithmetic mean of the candidate's transition scores.
+
+Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
+was less effective than their solution. We found that the features
+associated with the \textsc{idle} transition were uninformative (the state is at
+termination, so the stack and buffer are empty), and had nothing to do with how
+many edit transitions were earlier applied.
+
 \section{Features for the joint parser}
 \label{sec:features}
 
@@ -429,633 +825,6 @@ or pair of words immediately preceding N0 are already marked disfluent by the pa
 A similar pair of features is
 added for the word or pair of words immediately after \szero.
 
-\section{A non-monotonic Edit transition}
-\label{sec:edittrans}
-\begin{figure}
-    \small
-\begin{dependency}[theme=simple, segmented edge]
-    \begin{deptext}[column sep=.075cm, row sep=.1ex]
-    Pass \& me \& the \& red \& rectangle \& uh I mean \& square \\
-    \end{deptext}
-    \depedge[edge unit distance=0.9ex]{1}{2}{}
-    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{3}{}
-    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{4}{}
-    \depedge[dotted, edge below, edge unit distance=0.8ex]{1}{5}{}
-    \depedge[edge unit distance=0.7ex]{7}{3}{}
-    \depedge[edge unit distance=0.7ex]{7}{4}{}
-    \depedge[edge unit distance=0.6ex]{1}{7}{}
-    \end{dependency}
-    \caption{\small Example where `temporary edges' between the reparandum and the
-    fluent sentence complicate parsing. In order to learn a projective tree
-    for the sentence, the parser would have to learn not to assign the dotted
-    edges below. We instead make the parsing process non-monotonic.
-\label{fig:rectangle}}
-\end{figure}
-
-One of the reasons disfluent sentences are hard to parse is that there often appear
-to be syntactic relationships between words in the reparandum and the fluent sentence.
-When these relations are added to the dependencies between fluent words,
-the resulting structure is not necessarily a projective tree.
-
-
-Figure 3 shows a simple example, where the repair {\em square} replaces the
-reparandum {\em rectangle}.  An incremental parser could easily become
-`garden-pathed' and attach the repair {\em square} to the preceding words,
-constructing the dependencies shown dotted in Figure~3.  Rather than attempting
-to devise an incremental model that avoids constructing such dependencies, we
-allow the parser to construct these dependencies and later correct any that seem
-erroneous, once the extent of the speech repair has been seen.
-
-Psycholinguistic models of human sentence processing have long posited
-\emph{repair} mechanisms \citep{FrazierRayner1982}.  Recently, \citet{honnibal:13}
-showed that a limited amount of `non-monotonic' behaviour can 
-improve an incremental parser's accuracy.
-We here introduce a non-monotonic transition, \textsc{Edit}, for speech
-repairs. 
-
-\begin{figure}
-\small
-%\centering
-\begin{tabular}{l}
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    1. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\wordgroup{1}{2}{2}{}
-\end{dependency} \\
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    2. $L$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\end{dependency} \\
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    3. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\wordgroup{1}{3}{3}{}
-\end{dependency} \\
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    4. $L$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{4}{3}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    5. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{4}{3}{}
-\wordgroup{1}{4}{4}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    6. $R$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
-\wordgroup{1}{4}{4}{}
-\wordgroup{1}{5}{5}{}
-\end{dependency} \\
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    7. $D$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
-\wordgroup{1}{4}{4}{}
-\end{dependency} \\
-
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    8. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
-\wordgroup{1}{4}{4}{}
-\wordgroup{1}{6}{6}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    9. $L$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
-\depedge{7}{6}{}
-\wordgroup{1}{4}{4}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    10. \textbf{E} \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{7}{6}{}
-\wordgroup{1}{3}{3}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    11. $L$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{7}{6}{}
-\depedge{7}{3}{}
-\end{dependency} \\
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    12. $S$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{7}{6}{}
-\depedge{7}{3}{}
-\wordgroup{1}{7}{7}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    12. $R$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{7}{6}{}
-\depedge{7}{3}{}
-\depedge{7}{8}{}
-\wordgroup{1}{7}{7}{}
-\wordgroup{1}{8}{8}{}
-\end{dependency} \\
-
-
-\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-\begin{deptext}[column sep=0.075cm, row sep=.1ex]
-    13. $D$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
-\end{deptext}
-\depedge{3}{2}{}
-\depedge{7}{6}{}
-\depedge{7}{3}{}
-\depedge{7}{8}{}
-\wordgroup{1}{7}{7}{}
-\end{dependency} \\
-
-
-
-\end{tabular}
-\end{figure}
-
-%
-%\begin{figure*}
-%    \small
-%    \centering
-%    \begin{tabular}{llc}
-%    % 1 R
-%        1 & $\langle R \rangle $ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& $\|$ the \& \emph{monthly} \& \emph{salary} \& starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \hfill \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        \wordgroup{1}{3}{3}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%    \end{dependency}\\[-2.0ex]
-%    % 2 SS
-%    2 & $\langle DSS \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%
-%            I \& noticed \& that \& the \& \emph{monthly} \& $\|$ \emph{salary} \& starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \hfill \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        \wordgroup{1}{4}{4}{}
-%        \wordgroup{1}{5}{5}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    % 3 LL
-%    3 & $\langle LL \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \emph{monthly} \& $\|$ \emph{salary} \& starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        %\wordgroup{1}{4}{4}{}
-%        %\wordgroup{1}{5}{5}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%        \depedge{6}{5}{}
-%        \depedge{6}{4}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    % 4 R
-%4 & $\langle R \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \emph{monthly} \& \emph{salary} \& $\|$ starting \& average \& monthly \& \emph{salary} \& salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        %\wordgroup{1}{4}{4}{}
-%        %\wordgroup{1}{5}{5}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%        \depedge{6}{5}{}
-%        \depedge[edge unit distance=0.9ex]{6}{4}{}
-%
-%        \depedge[edge unit distance=0.3ex, edge below]{2}{6}{}
-%        \wordgroup{1}{6}{6}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    % 5 SSSLLL
-%5 & $\langle SSSLLL \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \emph{monthly} \& \emph{salary} \& starting \& average \& monthly \& $\|$ \emph{salary} \& salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        %\wordgroup{1}{4}{4}{}
-%        %\wordgroup{1}{5}{5}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%        \depedge{6}{5}{}
-%        \depedge[edge unit distance=0.9ex]{6}{4}{}
-%
-%        \depedge[edge unit distance=0.3ex, edge below]{2}{6}{}
-%        \wordgroup{1}{6}{6}{}
-%
-%        \depedge[edge unit distance=0.9ex]{10}{9}{}
-%        \depedge[edge unit distance=0.8ex]{10}{8}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
-%    \end{dependency}\\[-2.0ex]
-%    % 6 E
-%    6 & $\langle \textbf{E} \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \emph{monthly} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& $\|$ \emph{salary} \& salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        \wordgroup{1}{4}{4}{}
-%        \wordgroup{1}{5}{5}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%
-%        \depedge[edge unit distance=0.9ex]{10}{9}{}
-%        \depedge[edge unit distance=0.8ex]{10}{8}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    % 7 E
-% 7 & $\langle \textbf{E} \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& $\|$ \emph{salary} \& salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        \wordgroup{1}{4}{4}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%
-%        \depedge[edge unit distance=0.9ex]{10}{9}{}
-%        \depedge[edge unit distance=0.8ex]{10}{8}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    % 8 LS
-% 8 & $\langle LS \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& \emph{salary} \& $\|$ salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        %\wordgroup{1}{4}{4}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%
-%        \depedge[edge unit distance=0.9ex]{10}{9}{}
-%        \depedge[edge unit distance=0.8ex]{10}{8}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{10}{4}{}
-%        \wordgroup{1}{10}{10}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    % 9 E
-%    9 & $\langle \textbf{E} \rangle$ & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& \cancel{\emph{salary}} \& $\|$ salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        \wordgroup{1}{4}{4}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%
-%        \wordgroup{1}{7}{7}{}
-%        \wordgroup{1}{8}{8}{}
-%        \wordgroup{1}{9}{9}{}
-%        %\depedge[edge unit distance=0.9ex]{10}{9}{}
-%        %\depedge[edge unit distance=0.8ex]{10}{8}{}
-%        %\depedge[edge below, edge unit distance=0.3ex]{10}{7}{}
-%        %\depedge[edge below, edge unit distance=0.3ex]{10}{4}{}
-%        %\wordgroup{1}{10}{10}{}
-%    \end{dependency}\\[-2.0ex]
-%     10 &    & \begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
-%        \begin{deptext}[column sep=.075cm, row sep=.1ex]
-%            I \& noticed \& that \& the \& \cancel{\emph{monthly}} \& \cancel{\emph{salary}} \& starting \& average \& monthly \& \cancel{\emph{salary}} \& $\|$ salary \& for \& engineers \\
-%        \end{deptext}
-%        \wordgroup{1}{2}{2}{}
-%        \depedge{2}{1}{}
-%        \depedge{2}{3}{}
-%
-%        \depedge[edge unit distance=0.9ex]{11}{9}{}
-%        \depedge[edge unit distance=0.8ex]{11}{8}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{11}{7}{}
-%        \depedge[edge below, edge unit distance=0.3ex]{11}{4}{}
-%        \depedge[edge unit distance=0.3ex]{2}{11}{}
-%        \depedge{11}{12}{}
-%        \depedge{12}{13}{}
-%        %\wordgroup{1}{10}{10}{}
-%    \end{dependency}\\[-2.0ex]
-% 
-%    \end{tabular}
-%    \caption{\small Example from the development data where the Edit transition
-%    improves accuracy. Words on the stack are shown circled, while words marked
-%    disfluent with the Edit transition are struck-through. The start of the
-%    buffer is marked with $\|$}.
-%\end{figure*}
-%
-
-The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
-disfluent, along with its rightward descendents --- i.e., all words in the
-sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
-restores the words both preceding and formerly governed by $i$ to the stack:
-\begin{equation}
-    (\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1 | ... | x_n, j | \beta,A',D')\;\;\;(E)
-    \nonumber
-\end{equation}
-Where 
-\begin{itemize}
-    \itemsep0em
-    \item $A \setminus A' = \{x \rightarrow y : x = i \cup y = i, x \ne y \}$
-    \item $D' \setminus D = \{i...j-1\}$;
-\item  and $x_1...x_n$ is the ordered sequence of words both preceding and formerly governed
-by $i$.
-\end{itemize}
-In other words, the word on top of the stack and its \emph{rightward descendents}
-are all marked as disfluent, and the stack is popped. We then restore to the stack
-the leftward children of the word that was formerly on top of the
-stack. All dependencies to and from words marked disfluent are deleted. 
-This means that the members of $D$ cannot have any dependencies in $A$, so the
-two can be implemented with a single vector.
-
-Why revisit the leftward children, but not the right? The logic here is that we
-are concerned about dependencies which might be mirrored between the reparandum
-and the repair. The rightward subtree of the disfluency might well be incorrect,
-but if it is, it would still be incorrect if the word on top of the stack weren't
-disfluent --– so we regard these as parsing errors that we will train our model
-to avoid. In contrast, avoiding the Left-Arc transitions would require the parser to
-predict that the head is disfluent, when it has not necessarily seen any evidence
-indicating that.
-
-The transition is \emph{non-monotonic} in the sense that it can delete dependencies
-that the parser had previously proposed, and replace tokens onto the stack for
-further processing. 
-A worked example featuring several applications of the \textsc{edit} transition
-is included in the supplementary materials.
-
-\subsection{Worked example}
-
-Figure \ref{fig:bankrupt} shows a gold-standard derivation for a disfluent sentence
-from the development data.  The Edit transition is particularly useful for this
-type of sentence, where the verb is disfluent but the subject is not.
-
-Line 1 shows the state resulting from the initial Shift action.  In the subsequet
-states, \emph{His} is Left-Arced to \emph{company}, which is then Shifted onto
-the stack, and Left-Arced to the disfluent verb \emph{went} in Line 4.
-
-The dependency between \emph{went} and \emph{company} is not part of the gold-standard,
-because \emph{went} is disfluent.  The correct governor of \emph{company} is the
-second \emph{went} in the sentence.  The Left-Arc move in Line 4 can still
-be considered correct, however, because the gold-standard analysis is still
-derivable from the resulting configuration, via the Edit transition.
-Another non-gold edge is created in Line 6, between \emph{broke} and \emph{went},
-before \emph{broke} is Reduced from the stack in Line 7.
-
-Lines 9 and 10 show the states before and after of the Edit transition. The word
-on top of the stack in Line 9, \emph{went}, has one leftward child, and one
-rightward child.  After the Edit transition is applied, \emph{went} and its 
-rightward child \emph{broke} are both marked disfluent, and \emph{company}
-is returned to the stack.  All arcs to and from \emph{went} and \emph{broke}
-are deleted.
-
-shows the state immediately before the Edit transition is applied, and Line
-10 shows the resulting state.
-
-
-%\subsection{Motivating example}
-%
-%Figure 2 shows part of a sentence from the development data that contains several
-%difficult disfluencies, of the type the \edittrans transition is designed to address.
-%Each numbered line shows a state along the final path predicted by the
-%parser.\footnote{This discussion is intended for illustration, and may not reflect
-%how our final model actually behaves, or why.  Our model is evaluated
-%statistically in Section \ref{sec:results}.}
-%The actions performed to transform the previous state into the current one are
-%listed in angle brackets. Words on the stack are circled, and dependencies are
-%shown as arcs from the head to the child. The $\|$ symbol shows where the buffer
-%begins.
-%
-%Line 1 shows a state resulting from a Right-Arc (R) from \emph{noticed}
-%to \emph{that}. Previously, the parser had performed a Left-Arc from \emph{noticed}
-%to \emph{I}, which is no
-%longer on the stack. The italicised words in the buffer are disfluent, and will
-%be deleted using the \edittrans transition. Deletions will be marked by strike-through.
-%
-%Line 2 shows the state after the Shift move (S)
-%has pushed \emph{the} and \emph{monthly} onto the stack. It would be correct to
-%apply the \edittrans transition to this configuration, but that is only one of
-%several moves that we would consider to be correct, or `zero-cost'.\footnote{As
-%we explain in Section \ref{sec:dynoracle}, our training process does not use a single
-%canonical derivation as its gold-standard.  Instead, our training process is adjusted
-%for the \emph{spurious ambiguity} we introduce via the non-monotonic transition
-%system, using a dynamic oracle \citep{goldberg:12}.}
-%
-%The model selects a different zero-cost action, Left-Arc, which pops \emph{monthly}
-%and attaches it to \emph{salary}. The parser then performs another Left-Arc,
-%attaching the fluent word the to the disfluent word salary, resulting in the
-%state at Line 3.
-%
-%The critical difference between the \edittrans model and the baseline is that
-%this type of arc is also zero-cost in the \edittrans model, because we will later
-%put \emph{the} back onto the stack. Our argument is that from the configuration
-%in Line 2, the Left-Arcs are the natural choice, and a loss-function that penalises
-%this move will be very difficult to learn. The state resulting from these two
-%actions is shown in Line 3.
-%
-%The parser's next action is a Right-Arc from the fluent \emph{noticed} to the
-%disfluent \emph{salary}, pushing \emph{salary} onto the stack. This action is also
-%zero-cost, even though it creates an erroneous arc, because we'll later have the
-%chance to
-%delete the arc via the \edittrans transition. The parser then performs a series of
-%Shift and Left-Arc moves, attaching the fluent tokens \emph{starting}, \emph{monthly}
-%and \emph{average} to the second disfluent \emph{salary} token. These arcs are all
-%also zero-cost, and are further examples of the type of arc that motivates the
-%\edittrans transition.
-%
-%The parser is now (Line 4) in a state from which it can confidently predict that
-%the \emph{salary} token on top of the stack is disfluent, as there is a matching
-%word at the start of the buffer that isn’t one of the small set of words that are
-%often repeated in the training data. The word-match features will also find a match
-%between the tokens S0L0 and N0L0 (first left child of S0 and first left child
-%of N0).
-%
-%Line 5 shows the state that results from the \edittrans transition. It marks
-%\emph{salary} as disfluent, deletes all arcs to and from it, pops it from the
-%stack, and restores its leftward children to the stack —-- in this case, \emph{monthly}.
-%The parser’s next action is to mark \emph{monthly} as disfluent. A Left-Arc, Shift, or
-%even Right-Arc would all have been zero-cost from this state, because the word
-%on top of the stack and the word at the start of the buffer are both disfluent.
-%Instead, the word-match between S0 and \nzeroLzero, combined with the fact that the token
-%after \szero was marked disfluent, leads the parser to mark \emph{monthly} as
-%also disfluent.
-%
-%The parser next applies the Left-Arc transition from the disfluent \emph{salary} to the
-%fluent \emph{the}, again at zero-cost, even though the arc is incorrect. The Shift move
-%then puts the parser in the state shown on Line 7: the disfluent \emph{salary} is at
-%the top of the stack, with several fluent words as leftward children, and its
-%repair is at the start of the buffer. The word-match feature between S0 and N0
-%fires, encouraging the parser to select the \edittrans transition, which restores
-%\emph{the}, \emph{starting}, \emph{average} and \emph{monthly} to the stack, resulting
-%in the state on Line 9.
-%
-%Having successfully marked the disfluencies, the parser performs a series of
-%Left-Arcs, before correctly attaching salary to noticed via the Right-Arc,
-%and happens to correctly attach the preposi- tional phrase as well.
-
-\subsection{Dynamic oracle training}
-\label{sec:dynoracle}
-
-
-%An essential component when training a transition-based parser is an oracle which,
-%given a gold-standard tree, dictates the sequence of moves a parser should make
-%in order to derive it. Traditionally, these oracles are defined as functions from
-%trees to sequences, mapping a gold tree to a single sequence of actions deriving it,
-%even if more than one sequence of actions derives the gold tree. During training,
-%the model suffers a loss if its prediction departs from this single 
-%sequence, even if it lies on an alternate path to the gold-standard tree.
-
-Our non-monotonic transition system introduces substantial \emph{spurious ambiguity}:
-the gold-standard parse can be derived via many different transition sequences.
-Recent work has shown that this can be advantageous
-\citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
-sometimes be delayed until more information is available.
-
-For instance, given the sentence in Figure \ref{fig:rectangle}, imagine that
-the parser reaches the configuration $\mathrm{Pass} | \mathrm{the} | \mathrm{red}, \mathrm{rectangle} | \beta, A = \{ \mathrm{Pass} \rightarrow \mathrm{me} \}, D = \emptyset$. That is, \emph{rectangle}
-is at the head of the buffer, with three words on the stack, one (correct) dependency,
-and no disfluent words.
-
-From this configuration, there are multiple actions that could be considered
-`correct', in the sense that they do not exclude the gold-standard analysis.
-The Edit transition is correct because \emph{red} is disfluent, but the
-Left-Arc and even the Right-Arc are also correct, in that there are continuations
-from them that lead to the fully correct parse tree and disfluency analysis.
-
-We regard all transition sequences that can result in the correct analysis as
-equally valid, and want to avoid stipulating one of them during training.  
-We achieve this by following \citet{goldberg:12} in using a
-\emph{dynamic oracle} to create partially labelled training data. 
-A dynamic oracle is a function that determines the highest-scoring analysis reachable
-from a given configuration, which makes it easy to calculate the cost of applying
-an action to a configuration.  Our training data is \emph{partially} labelled
-in the sense that there can be multiple zero-cost actions for a configuration.
-
-\citet{goldberg:12} describe how a local model can be trained using a dynamic
-oracle.  We adapt their algorithm for the structured perceptron with beam-search
-decoding as follows.
-
-For each sentence, we maintain two priority queues of
-$\langle \mathrm{score}, \mathrm{configuration} \rangle$ tuples: a prediction
-beam $C$ and a gold-standard beam $G$.
-At each step of the parsing process, we search for the \emph{maximum violation}
-\citep{huang:12}, which we track in another priority queue, $V$:
-
-\begin{enumerate}
-\itemsep0em
-\item Extend $C_1...C_k$ with every action, pushing them to
-      priority queue $C'$. Replace $C$ with $C'$.
-\item Extend $G_1...G_k$ with every action that results in a
-      configuration from which the gold-standard analysis can be reached, pushing
-      them to priority queue $G'$. Replace $G$ with $G'$.
-  \item If the gold-standard analysis cannot be reached from $C_{1,2}$, 
-    set $\delta = C_{1,1} - G_{1,1}$. If $\delta \ge 0$, push the triple
-    $\langle \delta, C_{1,2}, G_{1,2} \rangle$ to the priority queue $V$.
-\end{enumerate}
-
-Once parsing terminates, we perform a standard structured perceptron update
-with the gold and predicted candidates at $V_1$.
-
-The maximum violation update strategy is an improvement on the early update
-strategy of \citet{collins:02}.\footnote{Its advantage is mostly in efficiency:
-the two update strategies result in similar accuracy, but \emph{maximum violation}
-requires fewer training iterations, because its updates are over longer sequences.}
-Instead of searching for the point where the
-gold-standard analysis falls out of the prediction beam, we find the point
-where the divergence in scores is highest.
-
-%Having found the \emph{maximum violation}
-%$V$, we perform a standard structured perceptron weight update over the gold and
-%predicted state sequences.
-
-
-\subsection{Path length normalisation}
-
-One problem introduced by the \textsc{edit} transition is that the number of
-actionss applied to a sentence is no longer constant --- it is no longer guaranteed
-to be $2n-1$, for a sentence of length $n$. When the \textsc{edit} transition is
-applied to a word with leftward children, those children are returned to the stack,
-and processed again.  This has little to no impact on the algorithm's empirical
-efficiency, although worst-case complexity is no longer linear, but it does
-pose a problem for decoding.
-
-The perceptron model tends to assign
-high scores to its top prediction.\footnote{Recall that each training instance
-involves adding 1.0 to the weights for the correct class, and -1.0 to the weights
-for the predicted class, over several iterations. The correct class stays the
-same, while the predictions may vary, so the negative weight tends to be split
-among multiple classes. This is why the top prediction on an instance almost
-always has a high positive weight.}
-We thus observed a problem when comparing paths of different lengths, at the end
-of the sentence. Paths that included \textsc{edit} transitions were longer,
-so the sum of their scores tended to be higher.
-
-The same problem has been observed during incremental \textsc{pcfg} parsing,
-by \citet{zhang:13}.  They introduce an additional transition, \textsc{idle},
-to ensure that paths are the same length. So long as one candidate in the beam
-is still being processed, all other candidates apply the \textsc{idle} transition.
-
-We adopt a simpler solution.  We normalise the figure-of-merit, which is used to rank
-candidates in the beam, by the length of the candidates' transition history. The
-new figure-of-merit is the
-arithmetic mean of the candidate's transition scores.
-
-Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
-was less effective than their solution. We found that the features
-associated with the \textsc{idle} transition were uninformative (the state is at
-termination, so the stack and buffer are empty), and had nothing to do with how
-many edit transitions were earlier applied.
 
 \section{Part-of-speech tagging}
 
