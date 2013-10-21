@@ -166,57 +166,6 @@ The system is also quite efficient, and has quite promising future prospects.
 Because the parser is incremental, it should be well suited
 to speech-recogniser output and other unsegmented text.
 
-\section{Transition-based dependency parsing}
-
-\begin{figure}
-    \centering
-    \begin{tabular}{lr}
-        $(\sigma,i | \beta, A) \vdash (\sigma | i, \beta, A) $ \hfill & \hfill (S) \\
-        $(\sigma | i,j | \beta, A) \vdash ( \sigma, j | \beta, A \cup \{ j \rightarrow i \} ) $ \hfill & \hfill (L) \\
-        \multicolumn{2}{c}{Only if $i$ does not have an incoming arc.}\\
-        $(\sigma | i,j | \beta, A) \vdash ( \sigma | i | j, \beta, A \cup \{ i \rightarrow j \} ) $ \hfill & \hfill (R) \\
-        $(\sigma | i, \beta, A) \vdash ( \sigma, \beta, A )$ \hfill & \hfill  (D) \\
-        \multicolumn{2}{c}{Only if $i$ has an incoming arc.}\\
-
-
-    \end{tabular}
-    \caption{\small The arc-eager transition system.\label{fig:ae_notation}}
-\end{figure}
-
-
-A transition-based parser predicts the syntactic structure of a sentence incrementally,
-by making a sequence of classification decisions.  We follow the architecture of
-\citet{zhang:cl11}, who use beam-search for decoding, and a structured averaged
-perceptron for training.  Despite its simplicity, this type of parser
-has produced highly competitive results on the Wall Street Journal: with the
-extended feature set described by \citet{zhang:11}, it achieves 93.5\%
-unlabelled accuracy on Stanford basic dependencies \citep{stanford_deps}.  Converting
-the constituency trees produced by the \citet{Charniak05a} reranking parser
-results in similar accuracy.
-
-Briefly, the transition-based parser consists of a configuration (or `state') which
-is sequentially manipulated by a set of possible transitions.  A state is a triple
-$c = (\sigma, \beta, A)$, where $\sigma$ and $\beta$ are disjoint sets of words
-termed the \emph{stack} and \emph{buffer} respectively, and $A$ is the set of
-dependency arcs.
-
-We use the arc-eager transition system \citep{nivre:03,nivre:cl}, which consists
-of four parsing actions:  \textbf{S}hift, \textbf{L}eft-Arc,
-\textbf{R}ight-Arc and Re\textbf{d}uce.
-We denote the stack with its topmost element
-to the right, and the buffer with its first element to the left. A vertical bar
-is used to indicate concatenation to the stack or buffer, e.g. $\sigma | i$ indicates
-a stack with the topmost element $i$ and remaining elements $\sigma$.  
-A dependency from a governor $i$ to a child $j$ is denoted $i \rightarrow j$.
-The four arc-eager transitions are shown in Figure \ref{fig:ae_notation}.
-
-The Shift action moves the first item of the buffer onto the stack.
-The Right-Arc does the same, but also adds an arc, so that the top two items
-on the stack are connected. The Reduce move and the Left-Arc both pop the stack,
-but the Left-Arc first adds an arc from the first word of the buffer to the word
-on top of the stack. Constraints on the Reduce and Left-Arc
-moves ensure that every word is assigned exactly one head in the final configuration.
-
 \section{Switchboard disfluency annotations}
 \label{sec:swbd}
 
@@ -288,6 +237,61 @@ tokens over 99.9\% of the times they occur in the treebank, with \emph{you} and 
 never having any children. This makes it easy to unmerge the tokens deterministically
 after parsing:
 all incoming and outgoing arcs will point to \emph{know} or \emph{mean}.
+
+
+\section{Transition-based dependency parsing}
+
+\begin{figure}
+    \centering
+    \begin{tabular}{lr}
+        $(\sigma,i | \beta, A) \vdash (\sigma | i, \beta, A) $ \hfill & \hfill (S) \\
+        $(\sigma | i,j | \beta, A) \vdash ( \sigma, j | \beta, A \cup \{ j \rightarrow i \} ) $ \hfill & \hfill (L) \\
+        \multicolumn{2}{c}{Only if $i$ does not have an incoming arc.}\\
+        $(\sigma | i,j | \beta, A) \vdash ( \sigma | i | j, \beta, A \cup \{ i \rightarrow j \} ) $ \hfill & \hfill (R) \\
+        $(\sigma | i, \beta, A) \vdash ( \sigma, \beta, A )$ \hfill & \hfill  (D) \\
+        \multicolumn{2}{c}{Only if $i$ has an incoming arc.}\\
+
+
+    \end{tabular}
+    \caption{\small The arc-eager transition system.\label{fig:ae_notation}}
+\end{figure}
+
+
+A transition-based parser predicts the syntactic structure of a sentence incrementally,
+by making a sequence of classification decisions.  We follow the architecture of
+\citet{zhang:cl11}, who use beam-search for decoding, and a structured averaged
+perceptron for training.  Despite its simplicity, this type of parser
+has produced highly competitive results on the Wall Street Journal: with the
+extended feature set described by \citet{zhang:11}, it achieves 93.5\%
+unlabelled accuracy on Stanford basic dependencies \citep{stanford_deps}.  Converting
+the constituency trees produced by the \citet{Charniak05a} reranking parser
+results in similar accuracy.
+
+Briefly, the transition-based parser consists of a configuration (or `state') which
+is sequentially manipulated by a set of possible transitions.  A state is a triple
+$c = (\sigma, \beta, A)$, where $\sigma$ and $\beta$ are disjoint sets of words
+termed the \emph{stack} and \emph{buffer} respectively, and $A$ is the set of
+dependency arcs.
+
+We use the arc-eager transition system \citep{nivre:03,nivre:cl}, which consists
+of four parsing actions:  \textbf{S}hift, \textbf{L}eft-Arc,
+\textbf{R}ight-Arc and Re\textbf{d}uce.
+We denote the stack with its topmost element
+to the right, and the buffer with its first element to the left. A vertical bar
+is used to indicate concatenation to the stack or buffer, e.g. $\sigma | i$ indicates
+a stack with the topmost element $i$ and remaining elements $\sigma$.  
+A dependency from a governor $i$ to a child $j$ is denoted $i \rightarrow j$.
+The four arc-eager transitions are shown in Figure \ref{fig:ae_notation}.
+
+The Shift action moves the first item of the buffer onto the stack.
+The Right-Arc does the same, but also adds an arc, so that the top two items
+on the stack are connected. The Reduce move and the Left-Arc both pop the stack,
+but the Left-Arc first adds an arc from the first word of the buffer to the word
+on top of the stack. Constraints on the Reduce and Left-Arc
+moves ensure that every word is assigned exactly one head in the final configuration.
+
+
+
 
 \section{A non-monotonic Edit transition}
 \label{sec:edittrans}
