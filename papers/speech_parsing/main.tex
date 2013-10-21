@@ -571,8 +571,6 @@ repairs.
     10. \textbf{E} \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
 \end{deptext}
 \depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
 \depedge{7}{6}{}
 \wordgroup{1}{3}{3}{}
 \end{dependency} \\
@@ -583,8 +581,6 @@ repairs.
     11. $L$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
 \end{deptext}
 \depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
 \depedge{7}{6}{}
 \depedge{7}{3}{}
 \end{dependency} \\
@@ -594,8 +590,6 @@ repairs.
     12. $S$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
 \end{deptext}
 \depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
 \depedge{7}{6}{}
 \depedge{7}{3}{}
 \wordgroup{1}{7}{7}{}
@@ -607,8 +601,6 @@ repairs.
     12. $R$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
 \end{deptext}
 \depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
 \depedge{7}{6}{}
 \depedge{7}{3}{}
 \depedge{7}{8}{}
@@ -622,8 +614,6 @@ repairs.
     13. $D$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
 \end{deptext}
 \depedge{3}{2}{}
-\depedge{4}{3}{}
-\depedge{4}{5}{}
 \depedge{7}{6}{}
 \depedge{7}{3}{}
 \depedge{7}{8}{}
@@ -844,6 +834,35 @@ that the parser had previously proposed, and replace tokens onto the stack for
 further processing. 
 A worked example featuring several applications of the \textsc{edit} transition
 is included in the supplementary materials.
+
+\subsection{Worked example}
+
+Figure \ref{fig:bankrupt} shows a gold-standard derivation for a disfluent sentence
+from the development data.  The Edit transition is particularly useful for this
+type of sentence, where the verb is disfluent but the subject is not.
+
+Line 1 shows the state resulting from the initial Shift action.  In the subsequet
+states, \emph{His} is Left-Arced to \emph{company}, which is then Shifted onto
+the stack, and Left-Arced to the disfluent verb \emph{went} in Line 4.
+
+The dependency between \emph{went} and \emph{company} is not part of the gold-standard,
+because \emph{went} is disfluent.  The correct governor of \emph{company} is the
+second \emph{went} in the sentence.  The Left-Arc move in Line 4 can still
+be considered correct, however, because the gold-standard analysis is still
+derivable from the resulting configuration, via the Edit transition.
+Another non-gold edge is created in Line 6, between \emph{broke} and \emph{went},
+before \emph{broke} is Reduced from the stack in Line 7.
+
+Lines 9 and 10 show the states before and after of the Edit transition. The word
+on top of the stack in Line 9, \emph{went}, has one leftward child, and one
+rightward child.  After the Edit transition is applied, \emph{went} and its 
+rightward child \emph{broke} are both marked disfluent, and \emph{company}
+is returned to the stack.  All arcs to and from \emph{went} and \emph{broke}
+are deleted.
+
+shows the state immediately before the Edit transition is applied, and Line
+10 shows the resulting state.
+
 
 %\subsection{Motivating example}
 %
