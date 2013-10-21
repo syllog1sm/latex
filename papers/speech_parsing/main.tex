@@ -473,6 +473,168 @@ improve an incremental parser's accuracy.
 We here introduce a non-monotonic transition, \textsc{Edit}, for speech
 repairs. 
 
+\begin{figure}
+\small
+%\centering
+\begin{tabular}{l}
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    1. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\wordgroup{1}{2}{2}{}
+\end{dependency} \\
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    2. $L$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\end{dependency} \\
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    3. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\wordgroup{1}{3}{3}{}
+\end{dependency} \\
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    4. $L$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    5. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\wordgroup{1}{4}{4}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    6. $R$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\wordgroup{1}{4}{4}{}
+\wordgroup{1}{5}{5}{}
+\end{dependency} \\
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    7. $D$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\wordgroup{1}{4}{4}{}
+\end{dependency} \\
+
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    8. $S$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\wordgroup{1}{4}{4}{}
+\wordgroup{1}{6}{6}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    9. $L$ \&    His \& company \& went \& broke \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\wordgroup{1}{4}{4}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    10. \textbf{E} \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\wordgroup{1}{3}{3}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    11. $L$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\depedge{7}{3}{}
+\end{dependency} \\
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    12. $S$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\depedge{7}{3}{}
+\wordgroup{1}{7}{7}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    12. $R$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\depedge{7}{3}{}
+\depedge{7}{8}{}
+\wordgroup{1}{7}{7}{}
+\wordgroup{1}{8}{8}{}
+\end{dependency} \\
+
+
+\begin{dependency}[theme=simple, segmented edge, edge unit distance=1.0ex]
+\begin{deptext}[column sep=0.075cm, row sep=.1ex]
+    13. $D$ \&    His \& company \& \cancel{went} \& \cancel{broke} \& i mean \& went \& bankrupt \\
+\end{deptext}
+\depedge{3}{2}{}
+\depedge{4}{3}{}
+\depedge{4}{5}{}
+\depedge{7}{6}{}
+\depedge{7}{3}{}
+\depedge{7}{8}{}
+\wordgroup{1}{7}{7}{}
+\end{dependency} \\
+
+
+
+\end{tabular}
+\end{figure}
+
 %
 %\begin{figure*}
 %    \small
@@ -648,7 +810,7 @@ repairs.
 The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
 disfluent, along with its rightward descendents --- i.e., all words in the
 sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
-restores the words preceding and governed by $i$ to the stack:
+restores the words both preceding and formerly governed by $i$ to the stack:
 \begin{equation}
     (\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1 | ... | x_n, j | \beta,A',D')\;\;\;(E)
     \nonumber
@@ -656,14 +818,14 @@ restores the words preceding and governed by $i$ to the stack:
 Where 
 \begin{itemize}
     \itemsep0em
-    \item $A \setminus A' = \{x \rightarrow y : x = i \cap y = i \}$
+    \item $A \setminus A' = \{x \rightarrow y : x = i \cup y = i, x \ne y \}$
     \item $D' \setminus D = \{i...j-1\}$;
-\item  and $x_1...x_n$ is the ordered sequence of words preceding and formerly governed
+\item  and $x_1...x_n$ is the ordered sequence of words both preceding and formerly governed
 by $i$.
 \end{itemize}
 In other words, the word on top of the stack and its \emph{rightward descendents}
 are all marked as disfluent, and the stack is popped. We then restore to the stack
-the \emph{immediate left descendents} of the word that was formerly on top of the
+the leftward children of the word that was formerly on top of the
 stack. All dependencies to and from words marked disfluent are deleted. 
 This means that the members of $D$ cannot have any dependencies in $A$, so the
 two can be implemented with a single vector.
@@ -673,7 +835,7 @@ are concerned about dependencies which might be mirrored between the reparandum
 and the repair. The rightward subtree of the disfluency might well be incorrect,
 but if it is, it would still be incorrect if the word on top of the stack weren't
 disfluent --– so we regard these as parsing errors that we will train our model
-to avoid. In contrast, avoiding the leftward arcs would require the parser to
+to avoid. In contrast, avoiding the Left-Arc transitions would require the parser to
 predict that the head is disfluent, when it has not necessarily seen any evidence
 indicating that.
 
@@ -782,21 +944,28 @@ Recent work has shown that this can be advantageous
 sometimes be delayed until more information is available.
 
 For instance, given the sentence in Figure \ref{fig:rectangle}, imagine that
-the parser reaches the configuration $\mathrm{Pass} | \mathrm{the} | \mathrm{red}, \mathrm{rectangle} | \beta, \mathrm{Pass} \rightarrow \mathrm{me}, \empty$. That is, \emph{rectangle}
-is at the head of the buffer, with three words on the stack, one (correct) dependency
-created, and no words marked disfluent. From this configuration, there are multiple
-equally `correct' actions. The Edit transition is correct, because \emph{red}
-is disfluent; but both the Left-Arc and the Right-Arc are also correct,
-in that there are continuations from them that lead to a fully correct parse
-tree and disfluency analysis.
+the parser reaches the configuration $\mathrm{Pass} | \mathrm{the} | \mathrm{red}, \mathrm{rectangle} | \beta, A = \{ \mathrm{Pass} \rightarrow \mathrm{me} \}, D = \emptyset$. That is, \emph{rectangle}
+is at the head of the buffer, with three words on the stack, one (correct) dependency,
+and no disfluent words.
 
-To exploit the spurious ambiguity, we use a \emph{dynamic oracle} to
-label our training examples \citet{goldberg:12}.
-A dynamic oracle is a function that determines the highest-scoring analysis
-reachable from a given configuration.  \citet{goldberg:12} use it to
-label examples for their greedy local model by determining which actions will
-render one or more gold-standard dependencies newly unreachable.  We modify their
-algorithm for use with the structured perceptron model with beam-search decoding.
+From this configuration, there are multiple actions that could be considered
+`correct', in the sense that they do not exclude the gold-standard analysis.
+The Edit transition is correct because \emph{red} is disfluent, but the
+Left-Arc and even the Right-Arc are also correct, in that there are continuations
+from them that lead to the fully correct parse tree and disfluency analysis.
+
+We regard all transition sequences that can result in the correct analysis as
+equally valid, and want to avoid stipulating one of them during training.  
+We achieve this by following \citet{goldberg:12} in using a
+\emph{dynamic oracle} to create partially labelled training data. 
+A dynamic oracle is a function that determines the highest-scoring analysis reachable
+from a given configuration, which makes it easy to calculate the cost of applying
+an action to a configuration.  Our training data is \emph{partially} labelled
+in the sense that there can be multiple zero-cost actions for a configuration.
+
+\citet{goldberg:12} describe how a local model can be trained using a dynamic
+oracle.  We adapt their algorithm for the structured perceptron with beam-search
+decoding as follows.
 
 For each sentence, we maintain two priority queues of
 $\langle \mathrm{score}, \mathrm{configuration} \rangle$ tuples: a prediction
@@ -816,15 +985,20 @@ At each step of the parsing process, we search for the \emph{maximum violation}
     $\langle \delta, C_{1,2}, G_{1,2} \rangle$ to the priority queue $V$.
 \end{enumerate}
 
+Once parsing terminates, we perform a standard structured perceptron update
+with the gold and predicted candidates at $V_1$.
+
 The maximum violation update strategy is an improvement on the early update
 strategy of \citet{collins:02}.\footnote{Its advantage is mostly in efficiency:
 the two update strategies result in similar accuracy, but \emph{maximum violation}
 requires fewer training iterations, because its updates are over longer sequences.}
 Instead of searching for the point where the
 gold-standard analysis falls out of the prediction beam, we find the point
-where the divergence in scores is highest. Having found the \emph{maximum violation}
-$V$, we perform a standard structured perceptron weight update over the gold and
-predicted state sequences.
+where the divergence in scores is highest.
+
+%Having found the \emph{maximum violation}
+%$V$, we perform a standard structured perceptron weight update over the gold and
+%predicted state sequences.
 
 
 \subsection{Path length normalisation}
