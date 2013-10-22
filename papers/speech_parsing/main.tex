@@ -114,8 +114,8 @@ with a parse accuracy of 90.5\% and 84.0\% accuracy at disfluency detection.
 % P1
 \section{Introduction}
 
-Most unscripted speech contains filled pauses (\emph{um}s and \emph{uh}s) and
-errors which are usually edited on-the-fly by the speaker. Disfluency detection
+Most unscripted speech contains filled pauses (\emph{um}s and \emph{uh}s), and
+errors that are usually edited on-the-fly by the speaker. Disfluency detection
 is the task of detecting these infelicities in spoken language transcripts. The
 task has some immediate value, as disfluencies have been shown to make speech
 recognition output much more difficult to read \citep{jones:03}, but has also
@@ -143,29 +143,30 @@ beyond these pilot studies, and present a system that compares favourably to a
 pipeline consisting of state-of-the-art components.
 
 Our parser largely follows the design of \citet{zhang:cl11}. We use a structured averaged
-perceptron model \citep{collins:02}, with beam-search decoding. Our feature set
+perceptron model with beam-search decoding \citep{collins:02}. Our feature set
 is based on \citet{zhang:cl11}, and our transition-system is based on the arc-eager
 system of \citet{nivre:03}.
 
-We exploit the ease with which this model can incorporate arbitrary features,
-and design a set of disfluency features that capture the
+We extend the transition system with a novel non-monotonic transition, Edit.
+It allows sentences like `\emph{Pass the pepper uh salt}'
+to be parsed incrementally, without the need to guess early that \emph{pepper}
+is disfluent.  This is achieved by re-processing the leftward children of
+the word Edit marks as disfluent, which means that the parser is not committed
+to a mistake if it attaches \emph{the} to \emph{pepper}.  All arcs to and from
+disfluent words are deleted, and the fluent parse is scored using the Sparseval
+measure.  We also exploit the ease with which the model can incorporate arbitrary
+features, and design a set of disfluency features that capture the
 `rough copy' structure of some speech repairs, which motivated the
 \citet{Johnson04a} noisy channel model.
-Our second improvement is a novel non-monotonic extension to the transition
-system. It allows the parser to delete edges it had previously created, in order
-to deal with speech repairs where the head of an apparent constituent is disfluent,
-but some of its apparent leftward children are not (e.g. \emph{pass the salt uh pepper}).
-Words detected as disfluencies are disconnected from the parse of the fluent sentence,
-which is scored with the Sparseval measure \citep{sparseval}.
 
-Our main comparison is against two pipeline systems, using the two current 
-state-of-the-art disfluency detections systems: the \citet{Johnson04a} noisy-channel
-model, and the \citet{qian:13} cascade of sequence taggers.  The joint model
-compared favourably to the pipeline parsers at both tasks, with an unlabelled
-attachment score of 90.5\%, and 84.0\% accuracy at detecting speech repairs.
-The system is also quite efficient, and has quite promising future prospects.
+Our main comparison is against two pipeline systems, which use the two current 
+state-of-the-art disfluency detection systems as pre-processors to our
+parser, minus the custom disfluency features and transition.
+The joint model compared favourably to the pipeline parsers at both tasks, with
+an unlabelled attachment score of 90.5\%, and 84.0\% accuracy at detecting speech
+repairs. The system is also quite efficient, and has quite promising future prospects.
 Because the parser is incremental, it should be well suited
-to speech-recogniser output and other unsegmented text.
+unsegmented text such as the output of speech-recognition systems.
 
 \section{Switchboard disfluency annotations}
 \label{sec:swbd}
@@ -592,59 +593,80 @@ Recent work has shown that this can be advantageous
 \citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
 sometimes be delayed until more information is available.
 
-For instance, consider the state shown in Line 5 of Figure \ref{fig:bankrupt}.
+The state in Line 5 of Figure \ref{fig:bankrupt} is an example of a state that
+introduces spurious ambiguity.
 From this configuration, there are multiple actions that could be considered
 `correct', in the sense that they do not exclude the gold-standard analysis.
 The Edit transition is correct because \emph{went} is disfluent, but the
 Left-Arc and even the Right-Arc are also correct, in that there are continuations
-from them that lead to the fully correct parse tree and disfluency analysis.
+from them that lead to a fully correct analysis.
 
 We regard all transition sequences that can result in the correct analysis as
 equally valid, and want to avoid stipulating one of them during training.  
 We achieve this by following \citet{goldberg:12} in using a
 \emph{dynamic oracle} to create partially labelled training data. 
-A dynamic oracle is a function that determines the highest-scoring analysis reachable
-from a given configuration, which makes it easy to calculate the cost of applying
-an action to a configuration.  Our training data is \emph{partially} labelled
+A dynamic oracle is a function that determines the \emph{cost} of applying an
+action to a state, in terms of gold-standard arcs that are newly unreachable.
+Our training data is partially labelled
 in the sense that there can be multiple zero-cost actions for a configuration.
 
 \citet{goldberg:12} describe how a local model can be trained using a dynamic
 oracle.  We adapt their algorithm for the structured perceptron with beam-search
 decoding as follows.
 
-For each sentence, we maintain two priority queues of
-$\langle \mathrm{score}, \mathrm{configuration} \rangle$ tuples: a prediction
-beam $C$ and a gold-standard beam $G$.
+\begin{figure}
+\small
+\begin{verbatim}
+def train(S, G, k):
+  pred = priority_queue((0, state(S)))
+  gold = priority_queue((0, state(S)))
+  max_violn = (0, None, None)
+  while not is_finished(pred[0][1]) and \
+        not is_finished(gold[0][1]):
+    pred = extend_beam(pred, k, G, 0)
+    gold = extend_beam(gold, k, G, 1)
+    p = pred[0]
+    cost = dynamic_oracle(p)
+    if cost >= 1:
+      g = gold[0]
+      v = p[0] - g[0]
+      if v >= max_violn[0]:
+        max_violn = (v, p[1], g[1])
+  update_weights(max_violn)
+
+def extend_beam(beam, k, G, is_gold):
+  ext = priority_queue()
+  for score, state in beam[:k]:
+    for w, action in get_scores(state):
+      cost = dyn_oracle(action, state, G)
+      if cost == 0 or not is_gold:
+        ext.push((score+w, action(state)))
+  return ext
+\end{verbatim}
+\caption{\small The maximum-violation update structured perceptron training
+    algorithm \citep{huang:12}, updated to use the \citet{goldberg:12} dynamic
+    oracle.  The best predicted and gold-standard candidates are found using
+    beam-search, and weight updates are performed over the states where the
+    best gold candidate receives its lowest score, compared to the best predicted
+    candidate. For simplicity, the path-length normalisation adjustment is not
+    shown.\label{fig:train_code}}
+\end{figure}
+
+The training algorithm is shown in Figure \ref{fig:train_code}.
+For each sentence \verb|S| and its gold-standard analysis \verb|G|,
+we maintain two priority queues of
+$\langle \mathrm{score}, \mathrm{state} \rangle$ tuples: a prediction
+beam \verb|pred| and a gold-standard beam \verb|gold|.
 At each step of the parsing process, we search for the \emph{maximum violation}
-\citep{huang:12}, which we track in another priority queue, $V$:
-
-\begin{enumerate}
-\itemsep0em
-\item Extend the configurations in $C_1...C_k$ with every action, adding the model's
-    score for the action to their figure of merit. Push the updated tuples to
-      priority queue $C'$. Replace $C$ with $C'$.
-\item Extend $G_1...G_k$ in the same way, but only with actions that result in
-    a configuration from which the gold-standard analysis can be reached.
-      Push the updated tuples to priority queue $G'$. Replace $G$ with $G'$.
-  \item If the gold-standard analysis cannot be reached from $C_{1,2}$, 
-    set $\delta = C_{1,1} - G_{1,1}$. If $\delta \ge 0$, push the triple
-    $\langle \delta, C_{1,2}, G_{1,2} \rangle$ to the priority queue $V$.
-\end{enumerate}
-
-Once parsing terminates, we perform a standard structured perceptron update
-with the gold and predicted candidates at $V_1$.
+\citep{huang:12}: the state where the divergence in score between the top elements
+of the beams is largest.
+Once parsing terminates, we perform the usual structured perceptron update, with
+the sequences leading up to the two maximum violation states.
 
 The maximum violation update strategy is an improvement on the early update
-strategy of \citet{collins:02}.\footnote{Its advantage is mostly in efficiency:
+strategy of \citet{collins:02}.  Its advantage is mostly in efficiency:
 the two update strategies result in similar accuracy, but \emph{maximum violation}
-requires fewer training iterations, because its updates are over longer sequences.}
-Instead of searching for the point where the
-gold-standard analysis falls out of the prediction beam, we find the point
-where the divergence in scores is highest.
-
-%Having found the \emph{maximum violation}
-%$V$, we perform a standard structured perceptron weight update over the gold and
-%predicted state sequences.
+requires fewer training iterations, because its updates are over longer sequences.
 
 
 \subsection{Path length normalisation}
@@ -675,8 +697,7 @@ is still being processed, all other candidates apply the \textsc{idle} transitio
 
 We adopt a simpler solution.  We normalise the figure-of-merit, which is used to rank
 candidates in the beam, by the length of the candidates' transition history. The
-new figure-of-merit is the
-arithmetic mean of the candidate's transition scores.
+new figure-of-merit is the arithmetic mean of the candidate's transition scores.
 
 Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
 was less effective than their solution. We found that the features
@@ -715,6 +736,7 @@ two or three labels from its left and right subtrees.  Details can be found in
 the supplementary materials.
 
 \subsection{Brown cluster features}
+\label{sec:browns}
 
 The Brown clustering algorithm \citep{brown:92} is a well known source
 of semi-supervised features. The clustering algorithm is run over a large sample
@@ -882,8 +904,8 @@ have syntactic annotation in some way.
 
 All parsing models were trained for 15 iterations.
 We found that optimising the number of iterations on a development set led to
-small improvements that did not transfer to a second development set (the middle
-third of Section 4, which \citet{Charniak01a} reserved for `future use').
+small improvements that did not transfer to a second development set (part of
+Section 4, which \citet{Charniak01a} reserved for `future use').
 
 We test for statistical significance in our results by training 20 models for
 each experimental configuration, using different random seeds. The random seeds
@@ -898,6 +920,16 @@ the cost of 50\% slower run-time. Wider beams than this brought no accuracy impr
 Accuracy seems to plateau with slightly narrower beams than on newswire text.
 This is probably due to the shorter sentences in Switchboard.
 
+The baseline \textbf{Beam parser} system refers to a standard arc-eager
+transition-based parser with a structured averaged perceptron model and beam-search
+decoding.  It uses the feature set of \citet{zhang:11}, plus our additional
+dependency label features and the Brown cluster features described in Section
+\ref{sec:browns}.  The baseline parser marks tokens as disfluent by attaching
+them to the rest of the parse tree with a special dependency label, \textsc{erased}.
+All descendants of a word attached to its governor with this label are marked as
+disfluent.
+
+
 %\label{sec:oracle}
 %This experiment investigates how much disfluencies disrupt parsing accuracy,
 %by training and evaluating a parser on a version of Switchboard with oracle
@@ -910,7 +942,8 @@ This is probably due to the shorter sentences in Switchboard.
 The accuracy of incremental dependency parsers is well established on the Wall
 Street Journal, but there are no dependency parsing results in the literature
 that make it easy to put our joint model's parsing accuracy into context.
-We therefore compare our joint model to pipeline approaches, using two state-of-the-art
+We therefore compare our joint model to two pipeline systems, which consist of 
+a disfluency detector, followed by our dependency parser.
 disfluency detection systems. On the development data, we also evaluate parse
 accuracies after oracle disfluency detection.
 
@@ -932,13 +965,13 @@ Oracle pipeline  & 100 & 100 & 100 & 91.6    & 88.6 \\
 \end{table}
 
 
-The parsers for the pipeline systems were trained on text with all disfluencies
+The dependency parser for the pipeline systems was trained on text with all disfluencies
 removed, following \citet{Charniak01a}. 
 The two disfluency detection systems we used were the \citet{qian:13} sequence-tagging
 model, and a version of the \citet{Johnson04a} noisy channel model, using the
 \citet{Charniak01b} syntactic language model and the reranking features of
-\citet{zwarts:11}. The two systems operate very differently, and achieve high
-accuracy.
+\citet{zwarts:11}. The two systems operate very differently, and are the two best
+published disfluency detection systems.
 
 
 %One concern we had with this architecture was that the model is trained on text
@@ -972,7 +1005,7 @@ Johnson et al pipeline      & 82.1 & 90.3 \\
 Qian and Liu  pipeline     & 83.9 & 90.1  \\
 \hline
 Baseline joint parser & 73.9 & 89.4 \\
-Final joint parser    & \textbf{84.0} & \textbf{90.5} \\
+Final joint parser    & 84.0 & \textbf{90.5} \\
 \hline
     \end{tabular}
     \caption{Test-set parse and disfluency accuracies.\label{tab:test}}
@@ -981,8 +1014,9 @@ Final joint parser    & \textbf{84.0} & \textbf{90.5} \\
 
 Table \ref{tab:dev} shows the development set accuracies for our joint parser.
 Both the disfluency features and the 
-\textsc{edit} transition make statistically significant improvements, in both
-disfluency $F$-measure, unlabelled attachment score, and labelled attachment score.
+Edit transition make statistically significant improvements, in both
+disfluency $F$-measure, unlabelled attachment score (\textsc{uas}), and
+labelled attachment score (\textsc{uas}).
 
 The \textbf{Oracle pipeline} system, which uses the gold-standard to clean disfluencies
 prior to parsing, shows the total impact of speech-errors on the parser.  The
@@ -990,33 +1024,54 @@ baseline parser, which uses the same features, scores 1.7\% lower.
 
 When we add the features described in Section \ref{sec:features}, the gap is reduced
 to 1.3\% (\textbf{+Features}).  Finally, the improved transition system reduces
-the gap further still, to 0.7\% (\textbf{+Edit transition}).
+the gap further still, to 0.7\% (\textbf{+Edit transition}).  We also tested
+these features in the Oracle parser, but found they were ineffective on fluent
+text.
 
 Table \ref{tab:test} shows the final evaluation.  
 Our main comparison is with the two pipeline systems, described in Section
 \ref{sec:pipeline}. 
 The final joint parser is 0.2\% more accurate than the best pipeline system, and
-0.4\% higher than the other.
+0.4\% better than the other.
 The \citet{Johnson04a} noisy channel model has a lower
 disfluency score, but results in a more accurate parser. We attribute this to
-the use of a syntactic language model, which seems to make its output more syntactically
-consistent.
+the use of a syntactic language model, which seems to make its output more
+syntactically consistent.
 
-The Johnson et al pipeline uses a syntactic parser as a pre-process to its
-disfluency detector, which is then used as a pre-process to a final syntactic
-parser.  We take this as good motivation for joint modelling: if both tasks need
-the other as a pre-process, then it makes good sense to do them at once.  The
-success of our joint model seems to confirm this.
+The \citet{Johnson04a} system can be made to output the parse assigned to the
+top-ranked candidate, so it does not necessarily need a parser as a post-process.
+However, conditional parsers are typically more accurate than syntactic
+language models, motivating the
+\emph{parser}~$\rightarrow$~\emph{disfluency~detector}~$\rightarrow$~\emph{parser}
+pipeline we have used in the Johnson et al system.
+Despite a disfluency detection disadvantage of 1.8\%, this produced higher parse
+accuracies than the Qian and Liu pipeline, which went
+\emph{disfluency~detector}~$\rightarrow$~\emph{parser}.  
+We take this as good motivation for joint modelling: if both tasks need
+the other as a pre-process, then it makes sense to do them at once.  The
+success of our joint model, which out-performed both pipelines,
+seems to confirm this.
 
-Our joint model's disfluency detection accuracy is not significantly different from
-the current state-of-the-art, \citet{qian:13}, despite having approximately 50\%
-as much training data (as we require syntactic annotation).\footnote{
+Our joint model's disfluency detection accuracy is slightly higher than
+the current state-of-the-art, \citet{qian:13}\footnote{
 Our scores refer to an updated version of the system
 that corrects minor pre-processing problems. We thank the Qian Xian for making
-his code available.}
+his code available.}, despite having approximately 50\%
+as much training data (as we require syntactic annotation, for which there is
+less data).  However, we doubt that the improvement would prove statistically
+significant, if we had a way to apply our significance testing regime to the
+other disfluency systems.
+
 Our significance testing regime involves training multiple
 models of our parser with different random seeds, so could not be applied to
-the other two disfluency detectors.
+the other two disfluency detectors.  However, our system's disfluency scores
+on the test set ranged
+from 83.3-84.6 over the 20 samples we collected, so it seems unlikely that
+the 0.1\% improvement over the \citet{qian:13} system would prove significant,
+if we had more than one sample for it.\footnote{
+Note that we do perform significance tests for the \emph{parse accuracy} of the
+two pipeline systems, by training our parser with different random seeds ---
+but each sample has the same disfluency-detected input.}
 
 Although we did not systematically
 optimise on the development set, our test scores are lower than our development
@@ -1085,9 +1140,11 @@ they use a two-stage bootstrap-style process.
 
 Direct comparison between our model and theirs is difficult,
 as they use the Penn2MALT scheme, and their parser is greedy, where we use
-beam search. The use of beam search may explain much of our performance advantage:
+beam search. They also use gold-standard part-of-speech tags, which would
+improve our scores by around 1\%.
+The use of beam search may explain much of our performance advantage:
 they report an unlabelled attachment score of 88.6, and a disfluency detection
-F-measure of 81.4\%.
+$F$-measure of 81.4\%.
 
 The most prominent joint model of constituency parsing and disfluency detection
 that we are aware of is from \citet{hale:06}, who investigated the effect of
