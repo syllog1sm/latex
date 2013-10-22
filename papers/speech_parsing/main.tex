@@ -254,13 +254,13 @@ the constituency trees produced by the \citet{Charniak05a} reranking parser
 results in similar accuracy.
 
 Briefly, the transition-based parser consists of a configuration (or `state') which
-is sequentially manipulated by a set of possible transitions.  A state is a 4-tuple
+is sequentially manipulated by a set of possible transitions. For us, a state is a 4-tuple
 $c = (\sigma, \beta, A, D)$, where $\sigma$ and $\beta$ are disjoint sets of word
 indices termed the \emph{stack} and \emph{buffer} respectively, $A$ is the set of
 dependency arcs, and $D$ is the set of word indices marked disfluent.  There are no
 arcs to or from members of $D$, so the dependencies and disfluencies can be
-implemented as a single vector (we mark a token as disfluent by setting it as its
-own governor).
+implemented as a single vector (in our parser, a token is marked as disfluent
+by setting it as its own head).
 
 We use the arc-eager transition system \citep{nivre:03,nivre:cl}, which consists
 of four parsing actions:  \textbf{S}hift, \textbf{L}eft-Arc,
@@ -279,8 +279,8 @@ but the Left-Arc first adds an arc from the first word of the buffer to the word
 on top of the stack. Constraints on the Reduce and Left-Arc
 moves ensure that every word is assigned exactly one head in the final configuration.
 We follow the suggestion of \citet{nivre:squib} and
-add a dummy token, \textsc{Root}, to the end of the sentence.  Parsing terminates
-when this token is at the start of the buffer, and the stack is empty.
+add a dummy token that governs root dependencies to the end of the sentence.
+Parsing terminates when this token is at the start of the buffer, and the stack is empty.
 Disfluencies are added to $D$ via the Edit transition, E, which we now define.
 
 
@@ -575,7 +575,7 @@ words are struck-through.
 \end{figure}
 
 
-\subsection{Dynamic oracle training}
+\subsection{Dynamic oracle training algorithm}
 \label{sec:dynoracle}
 
 
@@ -610,9 +610,9 @@ action to a state, in terms of gold-standard arcs that are newly unreachable.
 Our training data is partially labelled
 in the sense that there can be multiple zero-cost actions for a configuration.
 
-\citet{goldberg:12} describe how a local model can be trained using a dynamic
-oracle.  We adapt their algorithm for the structured perceptron with beam-search
-decoding as follows.
+\citet{goldberg:12} describe how a perceptron model with greedy decoding can be
+trained using a dynamic oracle.  We adapt their algorithm for the structured
+perceptron with beam-search decoding.
 
 \begin{figure}
 \small
@@ -657,7 +657,13 @@ For each sentence \verb|S| and its gold-standard analysis \verb|G|,
 we maintain two priority queues of
 $\langle \mathrm{score}, \mathrm{state} \rangle$ tuples: a prediction
 beam \verb|pred| and a gold-standard beam \verb|gold|.
-At each step of the parsing process, we search for the \emph{maximum violation}
+The first beam is used to search for the state sequence with the highest model
+score, and the second searches for the sequence with the highest score subject
+to the constraint that it be zero-cost, i.e. gold-standard.  In other words, only
+actions which can result in the gold-standard analysis are considered (this
+check is performed using the dynamic oracle).
+
+As parsing proceeds, we search for the \emph{maximum violation}
 \citep{huang:12}: the state where the divergence in score between the top elements
 of the beams is largest.
 Once parsing terminates, we perform the usual structured perceptron update, with
@@ -672,7 +678,7 @@ requires fewer training iterations, because its updates are over longer sequence
 \subsection{Path length normalisation}
 
 One problem introduced by the Edit transition is that the number of
-actionss applied to a sentence is no longer constant --- it is no longer guaranteed
+actions applied to a sentence is no longer constant --- it is no longer guaranteed
 to be $2n-1$, for a sentence of length $n$. When the Edit transition is
 applied to a word with leftward children, those children are returned to the stack,
 and processed again.  This has little to no impact on the algorithm's empirical
@@ -695,9 +701,12 @@ by \citet{zhang:13}.  They introduce an additional transition, \textsc{idle},
 to ensure that paths are the same length. So long as one candidate in the beam
 is still being processed, all other candidates apply the \textsc{idle} transition.
 
-We adopt a simpler solution.  We normalise the figure-of-merit, which is used to rank
-candidates in the beam, by the length of the candidates' transition history. The
-new figure-of-merit is the arithmetic mean of the candidate's transition scores.
+We adopt a simpler solution.  We normalise the figure-of-merit for a candidate
+state, which is used to rank
+it in the beam, by the length of its transition history. The
+new figure-of-merit is the arithmetic mean of the candidate's transition scores,
+where previously the figure-of-merit was the sum of the candidate's transition
+scores.
 
 Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
 was less effective than their solution. We found that the features
@@ -731,8 +740,8 @@ There are also ten tri-tag templates, which consider the
 
 We added additional dependency label features to the baseline feature
 set, as we found that disfluency detection errors often resulted in ungrammatical
-label combinations.  The additional templates combine the \pos tag of \szero with
-two or three labels from its left and right subtrees.  Details can be found in
+dependency label combinations.  The additional templates combine the \pos tag of \szero with
+two or three dependency labels from its left and right subtrees.  Details can be found in
 the supplementary materials.
 
 \subsection{Brown cluster features}
@@ -848,8 +857,8 @@ added for the word or pair of words immediately after \szero.
 
 \section{Part-of-speech tagging}
 
-In the absence of an established way of doing joint part-of-speech tagging and
-dependency parsing, we adopt the standard pipeline strategy.  Most transition-based
+We adopt the standard strategy of using a \pos tagger as a pre-process
+before parsing.  Most transition-based
 parsers use a structured averaged perceptron model with beam-search for tagging,
 as this model achieves competitive accuracy and matches the standard dependency
 parsing architecture. Our tagger also uses this architecture.
@@ -884,8 +893,9 @@ We use the standard train/dev/test split from \citet{Charniak01a}: Sections 2
 and 3 for training, and Section 4 divided into three held-out sections, the first
 of which is used for final evaluation.
 
-Our parser evaluation uses the \citep{sparseval} metric.
-However, we wanted to use a standard dependency converter, so we
+Our parser evaluation uses the \sparseval \citep{sparseval} metric.
+However, we wanted to use the Stanford dependency converter, for the 
+reasons described in Section \ref{sec:deps}, so we
 used our own implementation.  Our evaluation script is distributed
 in the supplementary materials.  Because we do not need to deal with recognition
 errors, we do not need to report our parsing results using $P$/$R$/$F$-measures.
@@ -944,26 +954,8 @@ Street Journal, but there are no dependency parsing results in the literature
 that make it easy to put our joint model's parsing accuracy into context.
 We therefore compare our joint model to two pipeline systems, which consist of 
 a disfluency detector, followed by our dependency parser.
-disfluency detection systems. On the development data, we also evaluate parse
-accuracies after oracle disfluency detection.
-
-\begin{table}
-    \centering
-    \small
-    \begin{tabular}{l|rrr|rr}
-        & P & R & F & \textsc{uas} & \textsc{las} \\
-        \hline \hline
-Beam parser$_{k=32}$  &	79.6	&	70.6	&	74.8	&	89.9	&	86.9 \\
-+Features             &	86.0	&	77.6	&	81.6	&	90.3	&	87.4 \\
-+Edit transition      &	92.2	&	80.7	&	86.1	&	90.9	&	87.9 \\
-\hline       
-Oracle pipeline  & 100 & 100 & 100 & 91.6    & 88.6 \\
-\hline
-    \end{tabular}
-\caption{Development parse and disfluency accuracies.
-\label{tab:dev}}
-\end{table}
-
+We also evaluate parse accuracies after oracle pre-processing, to
+guage the net effect of disfluencies on our parser's accuracy.
 
 The dependency parser for the pipeline systems was trained on text with all disfluencies
 removed, following \citet{Charniak01a}. 
@@ -995,23 +987,6 @@ published disfluency detection systems.
 \section{Results}
 \label{sec:results}
 
-\begin{table}
-    \small
-    \centering
-    \begin{tabular}{l|r|r}
-        & Disfl. F & \textsc{uas} \\
-        \hline \hline
-Johnson et al pipeline      & 82.1 & 90.3 \\ 
-Qian and Liu  pipeline     & 83.9 & 90.1  \\
-\hline
-Baseline joint parser & 73.9 & 89.4 \\
-Final joint parser    & 84.0 & \textbf{90.5} \\
-\hline
-    \end{tabular}
-    \caption{Test-set parse and disfluency accuracies.\label{tab:test}}
-\vspace*{-1.0ex}
-\end{table}
-
 Table \ref{tab:dev} shows the development set accuracies for our joint parser.
 Both the disfluency features and the 
 Edit transition make statistically significant improvements, in both
@@ -1027,6 +1002,50 @@ to 1.3\% (\textbf{+Features}).  Finally, the improved transition system reduces
 the gap further still, to 0.7\% (\textbf{+Edit transition}).  We also tested
 these features in the Oracle parser, but found they were ineffective on fluent
 text.
+
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr|rr}
+        & P & R & F & \textsc{uas} & \textsc{las} \\
+        \hline \hline
+Baseline joint parser  &	79.6	&	70.6	&	74.8	&	89.9	&	86.9 \\
++Features             &	86.0	&	77.6	&	81.6	&	90.3	&	87.4 \\
++Edit transition      &	92.2	&	80.7	&	86.1	&	90.9	&	87.9 \\
+\hline       
+Oracle pipeline  & 100 & 100 & 100 & 91.6    & 88.6 \\
+\hline
+    \end{tabular}
+    \caption{\small Development results for the joint models.  Disfluencies reduce
+        parse accuracy by 1.7\% Unlabelled Attachment Score (\textsc{uas}) for
+        the baseline model. Our features and Edit transition reduce the gap to
+        0.7\%, and improve disfluency detection by 11.3\% $F$-measure.
+        \label{tab:dev}}
+\end{table}
+
+
+\begin{table}
+    \small
+    \centering
+    \begin{tabular}{l|r|r}
+        & Disfl. F & \textsc{uas} \\
+        \hline \hline
+Johnson et al pipeline      & 82.1 & 90.3 \\ 
+Qian and Liu  pipeline     & 83.9 & 90.1  \\
+\hline
+Baseline joint parser & 73.9 & 89.4 \\
+Final joint parser    & 84.0 & \textbf{90.5} \\
+\hline
+    \end{tabular}
+    \caption{\small Test-set parse and disfluency accuracies.
+             The joint parser is improved by the features and Edit transition,
+             and out-performs the two state-of-the-art pipelines.
+    \label{tab:test}}
+\vspace*{-1.0ex}
+\end{table}
+
+
 
 Table \ref{tab:test} shows the final evaluation.  
 Our main comparison is with the two pipeline systems, described in Section
@@ -1080,9 +1099,9 @@ which dropped in accuracy by 0.5\%.
 
 \section{Analysis of Edit behaviour}
 
-In order to understand how the parser applies the \edittrans transition, we
+In order to understand how the parser applies the Edit transition, we
 collected some additional statistics over the development data.
-The parser predicted 2,459 \edittrans transitions,
+The parser predicted 2,459 Edit transitions,
 which together marked 2,702
 words disfluent (2,462 correctly).
 %The model largely assigns disfluency labels
@@ -1094,7 +1113,10 @@ another way, 1,592 leftward children were returned to the stack, from
 2,459 \textsc transitions.
 
 Of the 1,592 instances of a word being returned to the stack, 121 were cases where
-the same word was returned two or more times --- i.e. 1,471 tokens were returned
+the same word was returned two or more times\footnote{
+A word can be returned to the stack twice by being Left-Arced twice by words later
+marked as disfluent.}
+    --- i.e. 1,471 tokens were returned
 to the stack at least once, for a total of 1,592 returnings.
 The 1,471 tokens break down as follows:
 \vspace*{-0.5em}
@@ -1103,18 +1125,18 @@ The 1,471 tokens break down as follows:
     \item 607 were subsequently marked as disfluent
         \begin{itemize}
             \itemsep0ex
-            \item 562 true positive
-            \item 45 false positive
+            \item 562 correctly
+            \item 45 incorrectly
         \end{itemize}
     \item 864 were marked fluent.
         \begin{itemize}
             \itemsep0ex
-            \item 699 were attached to their correct head
-            \item 165 were attached incorrectly
+            \item 699 were ultimately correct
+            \item 165 were ultimately incorrect
             \begin{itemize}
                 \itemsep0ex
-                \item 26 were false-negative disfluencies
-                \item 139 were just parse errors
+                \item 26 were actually disfluent
+                \item 139 were fluent, but received the wrong head.
             \end{itemize}
         \end{itemize}
 \end{itemize}
