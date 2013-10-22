@@ -7,6 +7,7 @@
 \usepackage{latexsym}
 \usepackage{xspace}
 \usepackage{natbib}
+\usepackage{amsfonts}
 \usepackage{tikz-dependency}
 \usepackage{placeins}
 \usepackage{xcolor}
@@ -106,7 +107,7 @@ and processes over 700 sentences a second.
 
 For comparison, we evaluated two pipeline systems, using state-of-the-art disfluency
 detectors.  The joint model performed better on both tasks,
-with a parse accuracy of 91.5\% and 84.0\% accuracy at disfluency detection.
+with a parse accuracy of 90.5\% and 84.0\% accuracy at disfluency detection.
 
 \end{abstract}
 
@@ -161,7 +162,7 @@ Our main comparison is against two pipeline systems, using the two current
 state-of-the-art disfluency detections systems: the \citet{Johnson04a} noisy-channel
 model, and the \citet{qian:13} cascade of sequence taggers.  The joint model
 compared favourably to the pipeline parsers at both tasks, with an unlabelled
-attachment score of 91.5\%, and 84.0\% accuracy at detecting speech repairs.
+attachment score of 90.5\%, and 84.0\% accuracy at detecting speech repairs.
 The system is also quite efficient, and has quite promising future prospects.
 Because the parser is incremental, it should be well suited
 to speech-recogniser output and other unsegmented text.
@@ -241,22 +242,6 @@ all incoming and outgoing arcs will point to \emph{know} or \emph{mean}.
 
 \section{Transition-based dependency parsing}
 
-\begin{figure}
-    \centering
-    \begin{tabular}{lr}
-        $(\sigma,i | \beta, A) \vdash (\sigma | i, \beta, A) $ \hfill & \hfill (S) \\
-        $(\sigma | i,j | \beta, A) \vdash ( \sigma, j | \beta, A \cup \{ j \rightarrow i \} ) $ \hfill & \hfill (L) \\
-        \multicolumn{2}{c}{Only if $i$ does not have an incoming arc.}\\
-        $(\sigma | i,j | \beta, A) \vdash ( \sigma | i | j, \beta, A \cup \{ i \rightarrow j \} ) $ \hfill & \hfill (R) \\
-        $(\sigma | i, \beta, A) \vdash ( \sigma, \beta, A )$ \hfill & \hfill  (D) \\
-        \multicolumn{2}{c}{Only if $i$ has an incoming arc.}\\
-
-
-    \end{tabular}
-    \caption{\small The arc-eager transition system.\label{fig:ae_notation}}
-\end{figure}
-
-
 A transition-based parser predicts the syntactic structure of a sentence incrementally,
 by making a sequence of classification decisions.  We follow the architecture of
 \citet{zhang:cl11}, who use beam-search for decoding, and a structured averaged
@@ -268,10 +253,13 @@ the constituency trees produced by the \citet{Charniak05a} reranking parser
 results in similar accuracy.
 
 Briefly, the transition-based parser consists of a configuration (or `state') which
-is sequentially manipulated by a set of possible transitions.  A state is a triple
-$c = (\sigma, \beta, A)$, where $\sigma$ and $\beta$ are disjoint sets of words
-termed the \emph{stack} and \emph{buffer} respectively, and $A$ is the set of
-dependency arcs.
+is sequentially manipulated by a set of possible transitions.  A state is a 4-tuple
+$c = (\sigma, \beta, A, D)$, where $\sigma$ and $\beta$ are disjoint sets of word
+indices termed the \emph{stack} and \emph{buffer} respectively, $A$ is the set of
+dependency arcs, and $D$ is the set of word indices marked disfluent.  There are no
+arcs to or from members of $D$, so the dependencies and disfluencies can be
+implemented as a single vector (we mark a token as disfluent by setting it as its
+own governor).
 
 We use the arc-eager transition system \citep{nivre:03,nivre:cl}, which consists
 of four parsing actions:  \textbf{S}hift, \textbf{L}eft-Arc,
@@ -289,7 +277,35 @@ on the stack are connected. The Reduce move and the Left-Arc both pop the stack,
 but the Left-Arc first adds an arc from the first word of the buffer to the word
 on top of the stack. Constraints on the Reduce and Left-Arc
 moves ensure that every word is assigned exactly one head in the final configuration.
+We follow the suggestion of \citet{nivre:squib} and
+add a dummy token, \textsc{Root}, to the end of the sentence.  Parsing terminates
+when this token is at the start of the buffer, and the stack is empty.
+Disfluencies are added to $D$ via the Edit transition, E, which we now define.
 
+
+
+\begin{figure}
+    \centering
+    \small
+    \begin{tabular}{lr}
+        $(\sigma,i | \beta, A, D) \vdash (\sigma | i, \beta, A, D) $ \hfill & \hfill S \\
+        $(\sigma | i,j | \beta, A, D) \vdash ( \sigma, j | \beta, A \cup \{ j \rightarrow i \}, D ) $ \hfill & \hfill L \\
+        \multicolumn{2}{c}{Only if $i$ does not have an incoming arc.}\\
+        $(\sigma | i,j | \beta, A, D) \vdash ( \sigma | i | j, \beta, A \cup \{ i \rightarrow j \}, D ) $ \hfill & \hfill R \\
+        $(\sigma | i, \beta, A, D) \vdash ( \sigma, \beta, A, D )$ \hfill & \hfill  D \\
+        \multicolumn{2}{c}{Only if $i$ has an incoming arc.}\\
+    \hline
+    $(\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1...x_n, j | \beta,A',D')$ & E \\
+    Where \\
+    $A \setminus A' = \{x \rightarrow y : \forall x,y \in \mathbb{N}\;\mathrm{s.t.}\;x = i\;\mathrm{or}\;y = i\} $\\
+    %Rsuch that $x = i$ or $y = i \}$ \\
+    $D' \setminus D = \{i...j-1\}$ \\
+    $x_1...x_n$ are the former left children of $i$ \\
+    \end{tabular}
+    \caption{\small Our parser's transition system.  The first four transitions
+             are the standard arc-eager system; the fifth is our novel Edit
+             transition.\label{fig:ae_notation}}
+\end{figure}
 
 
 
@@ -298,23 +314,22 @@ moves ensure that every word is assigned exactly one head in the final configura
 
 One of the reasons disfluent sentences are hard to parse is that there often appear
 to be syntactic relationships between words in the reparandum and the fluent sentence.
-When these relations are added to the dependencies between fluent words,
+When these relations are considered in addition to the dependencies between fluent words,
 the resulting structure is not necessarily a projective tree.
-
 
 Figure 3 shows a simple example, where the repair {\em square} replaces the
 reparandum {\em rectangle}.  An incremental parser could easily become
 `garden-pathed' and attach the repair {\em square} to the preceding words,
 constructing the dependencies shown dotted in Figure~3.  Rather than attempting
 to devise an incremental model that avoids constructing such dependencies, we
-allow the parser to construct these dependencies and later correct any that seem
-erroneous, once the extent of the speech repair has been seen.
+allow the parser to construct these dependencies and later delete them if the governor
+or child are marked disfluent.
 
 Psycholinguistic models of human sentence processing have long posited
 \emph{repair} mechanisms \citep{FrazierRayner1982}.  Recently, \citet{honnibal:13}
 showed that a limited amount of `non-monotonic' behaviour can 
 improve an incremental parser's accuracy.
-We here introduce a non-monotonic transition, \textsc{Edit}, for speech
+We here introduce a non-monotonic transition, Edit, for speech
 repairs. 
 
 \begin{figure}
@@ -338,29 +353,18 @@ repairs.
 \label{fig:rectangle}}
 \end{figure}
 
-
 The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
 disfluent, along with its rightward descendents --- i.e., all words in the
 sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
-restores the words both preceding and formerly governed by $i$ to the stack:
-\begin{equation}
-    (\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1 | ... | x_n, j | \beta,A',D')\;\;\;(E)
-    \nonumber
-\end{equation}
-Where 
-\begin{itemize}
-    \itemsep0em
-    \item $A \setminus A' = \{x \rightarrow y : x = i \cup y = i, x \ne y \}$
-    \item $D' \setminus D = \{i...j-1\}$;
-\item  and $x_1...x_n$ is the ordered sequence of words both preceding and formerly governed
-by $i$.
-\end{itemize}
+restores the words both preceding and formerly governed by $i$ to the stack.
+
 In other words, the word on top of the stack and its \emph{rightward descendents}
-are all marked as disfluent, and the stack is popped. We then restore to the stack
-the leftward children of the word that was formerly on top of the
-stack. All dependencies to and from words marked disfluent are deleted. 
-This means that the members of $D$ cannot have any dependencies in $A$, so the
-two can be implemented with a single vector.
+are all marked as disfluent, and the stack is popped. We then restore its
+leftward children to the stack, to be re-processed.
+All dependencies to and from words marked disfluent are deleted. 
+The transition is \emph{non-monotonic} in the sense that it can delete dependencies
+that the parser had previously proposed, and replace tokens onto the stack for
+further processing. 
 
 Why revisit the leftward children, but not the right? The logic here is that we
 are concerned about dependencies which might be mirrored between the reparandum
@@ -371,42 +375,36 @@ to avoid. In contrast, avoiding the Left-Arc transitions would require the parse
 predict that the head is disfluent, when it has not necessarily seen any evidence
 indicating that.
 
-The transition is \emph{non-monotonic} in the sense that it can delete dependencies
-that the parser had previously proposed, and replace tokens onto the stack for
-further processing. 
-A worked example featuring several applications of the \textsc{edit} transition
-is included in the supplementary materials.
-
 \subsection{Worked example}
 
+%The Edit transition is particularly useful for this
+%type of sentence, where the verb is disfluent but the subject is not.
 Figure \ref{fig:bankrupt} shows a gold-standard derivation for a disfluent sentence
-from the development data.  The Edit transition is particularly useful for this
-type of sentence, where the verb is disfluent but the subject is not.
-
-Line 1 shows the state resulting from the initial Shift action.  In the subsequet
+from the development data.
+Line 1 shows the state resulting from the initial Shift action.  In the next three
 states, \emph{His} is Left-Arced to \emph{company}, which is then Shifted onto
-the stack, and Left-Arced to the disfluent verb \emph{went} in Line 4.
+the stack, and Left-Arced to \emph{went} in Line 4.
 
 The dependency between \emph{went} and \emph{company} is not part of the gold-standard,
 because \emph{went} is disfluent.  The correct governor of \emph{company} is the
 second \emph{went} in the sentence.  The Left-Arc move in Line 4 can still
 be considered correct, however, because the gold-standard analysis is still
 derivable from the resulting configuration, via the Edit transition.
-Another non-gold edge is created in Line 6, between \emph{broke} and \emph{went},
+Another non-gold dependency is created in Line 6, between \emph{broke} and \emph{went},
 before \emph{broke} is Reduced from the stack in Line 7.
 
-Lines 9 and 10 show the states before and after of the Edit transition. The word
+Lines 9 and 10 show the states before and after the Edit transition. The word
 on top of the stack in Line 9, \emph{went}, has one leftward child, and one
 rightward child.  After the Edit transition is applied, \emph{went} and its 
 rightward child \emph{broke} are both marked disfluent, and \emph{company}
-is returned to the stack.  All arcs to and from \emph{went} and \emph{broke}
-are deleted.
+is returned to the stack.  All of the previous dependencies to and from \emph{went}
+and \emph{broke} are deleted.
 
 Parsing then proceeds as normal, with the correct governor of \emph{company}
 being assigned by the Left-Arc in Line 11, and \emph{bankrupt} being Right-Arced
 to \emph{went} in Line 12.  To conserve space, we have omitted the dummy
 \textsc{Root} token, which is placed at the end of the sentence, following
-the suggestion of \citet{ballesteros:13}.  The final action will be a Left-Arc
+the suggestion of \citet{nivre:squib}.  The final action will be a Left-Arc
 from the \textsc{Root} token to \emph{went}.
 
 \begin{figure}
@@ -594,14 +592,10 @@ Recent work has shown that this can be advantageous
 \citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
 sometimes be delayed until more information is available.
 
-For instance, given the sentence in Figure \ref{fig:rectangle}, imagine that
-the parser reaches the configuration $\mathrm{Pass} | \mathrm{the} | \mathrm{red}, \mathrm{rectangle} | \beta, A = \{ \mathrm{Pass} \rightarrow \mathrm{me} \}, D = \emptyset$. That is, \emph{rectangle}
-is at the head of the buffer, with three words on the stack, one (correct) dependency,
-and no disfluent words.
-
+For instance, consider the state shown in Line 5 of Figure \ref{fig:bankrupt}.
 From this configuration, there are multiple actions that could be considered
 `correct', in the sense that they do not exclude the gold-standard analysis.
-The Edit transition is correct because \emph{red} is disfluent, but the
+The Edit transition is correct because \emph{went} is disfluent, but the
 Left-Arc and even the Right-Arc are also correct, in that there are continuations
 from them that lead to the fully correct parse tree and disfluency analysis.
 
@@ -626,11 +620,12 @@ At each step of the parsing process, we search for the \emph{maximum violation}
 
 \begin{enumerate}
 \itemsep0em
-\item Extend $C_1...C_k$ with every action, pushing them to
+\item Extend the configurations in $C_1...C_k$ with every action, adding the model's
+    score for the action to their figure of merit. Push the updated tuples to
       priority queue $C'$. Replace $C$ with $C'$.
-\item Extend $G_1...G_k$ with every action that results in a
-      configuration from which the gold-standard analysis can be reached, pushing
-      them to priority queue $G'$. Replace $G$ with $G'$.
+\item Extend $G_1...G_k$ in the same way, but only with actions that result in
+    a configuration from which the gold-standard analysis can be reached.
+      Push the updated tuples to priority queue $G'$. Replace $G$ with $G'$.
   \item If the gold-standard analysis cannot be reached from $C_{1,2}$, 
     set $\delta = C_{1,1} - G_{1,1}$. If $\delta \ge 0$, push the triple
     $\langle \delta, C_{1,2}, G_{1,2} \rangle$ to the priority queue $V$.
@@ -654,9 +649,9 @@ where the divergence in scores is highest.
 
 \subsection{Path length normalisation}
 
-One problem introduced by the \textsc{edit} transition is that the number of
+One problem introduced by the Edit transition is that the number of
 actionss applied to a sentence is no longer constant --- it is no longer guaranteed
-to be $2n-1$, for a sentence of length $n$. When the \textsc{edit} transition is
+to be $2n-1$, for a sentence of length $n$. When the Edit transition is
 applied to a word with leftward children, those children are returned to the stack,
 and processed again.  This has little to no impact on the algorithm's empirical
 efficiency, although worst-case complexity is no longer linear, but it does
@@ -670,7 +665,7 @@ same, while the predictions may vary, so the negative weight tends to be split
 among multiple classes. This is why the top prediction on an instance almost
 always has a high positive weight.}
 We thus observed a problem when comparing paths of different lengths, at the end
-of the sentence. Paths that included \textsc{edit} transitions were longer,
+of the sentence. Paths that included Edit transitions were longer,
 so the sum of their scores tended to be higher.
 
 The same problem has been observed during incremental \textsc{pcfg} parsing,
@@ -732,7 +727,6 @@ of a graph-based dependency parser. On our transition-based parser, Brown cluste
 features bring a small but statistically significant improvement on the \textsc{wsj}
 task (0.1-0.3\% \textsc{uas}).  Other developers of transition-based parsers
 seem to have found similar results (personal communication).
-
 Since a Brown cluster mapping computed by \citet{liang:05} is easily
 available\footnote{\url{www.metaoptimize.com/projects/wordreps}}, the features
 are very simple to implement and cheap to compute.
