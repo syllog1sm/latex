@@ -835,7 +835,7 @@ parsing architecture. Our tagger also uses this architecture.
 We performed some additional feature engineering for the tagger, in order to
 improve its accuracy given the lack of case distinctions and punctuation in
 the data. Our additional features use two sources of unsupervised information.
-First, we follow the suggestion of \citet{manning:11} in using Brown cluster
+First, we follow the suggestion of \citet{manning:11} by using Brown cluster
 features to improve the tagger's accuracy on unknown words. Second, we compensate
 for the lack of case distinctions by including features that ask what percentage
 of the time a word form was seen title-cased, upper-cased and lower-cased in the
@@ -862,19 +862,15 @@ We use the standard train/dev/test split from \citet{Charniak01a}: Sections 2
 and 3 for training, and Section 4 divided into three held-out sections, the first
 of which is used for final evaluation.
 
-Our parser evaluation is modelled on the \sparseval metric \citep{sparseval}.
+Our parser evaluation uses the \citep{sparseval} metric.
 However, we wanted to use a standard dependency converter, so we
-do not use the \sparseval tool itself.  Our evaluation script is distributed
-in the supplementary materials.
-
-We follow \sparseval in not including arcs to speech repairs or other disfluent
-words in the parser evaluation (i.e. we don't evaluate the heads of disfluent
-words).  Links to fluent words incorrectly marked as disfluent are counted as
-incorrect.  
-%A small advantage of this evaluation is that systems are always
-%evaluated on the same number of arcs.  This allows us to report our accuracies
-%in the same format as the rest of the recent dependency parsing literature,
-%instead of introducing precision/recall/$F$-measure scores.
+used our own implementation.  Our evaluation script is distributed
+in the supplementary materials.  Because we do not need to deal with recognition
+errors, we do not need to report our parsing results using $P$/$R$/$F$-measures.
+Instead, we report an unlabelled accuracy score, which refers to the percentage
+of fluent words whose governors were assigned correctly.  Note that words marked
+as disfluent cannot have any incoming or out-going dependencies, so if a word is
+incorrectly marked as disfluent, all of its dependencies will be incorrect.
 
 We follow \citet{Johnson04a} and others in restricting our disfluency evaluation
 to speech repairs, which we identify as words that have a node labelled \textsc{edited}
@@ -898,9 +894,9 @@ and 0.5 for disfluency $F$-measure.
 
 All of our models use beam-search decoding, with a beam width of 32. We found that
 a beam width of 64 brought a very small accuracy improvement (about 0.1\%), at
-the cost of 50\% slower run-time. Wider beams brought no accuracy improvement.
-Accuracy seems to converge with slightly narrower beams than on newswire text.
-This is probable due to the shorter sentences in Switchboard.
+the cost of 50\% slower run-time. Wider beams than this brought no accuracy improvement.
+Accuracy seems to plateau with slightly narrower beams than on newswire text.
+This is probably due to the shorter sentences in Switchboard.
 
 %\label{sec:oracle}
 %This experiment investigates how much disfluencies disrupt parsing accuracy,
@@ -909,12 +905,12 @@ This is probable due to the shorter sentences in Switchboard.
 %part of the yield of a node labelled \textsc{edited} in the \textsc{ptb} annotation.}
 %is removed, prior to training and evaluation.
 
-\subsection{Comparison with pipeline approach}
+\subsection{Comparison with pipeline approaches}
 \label{sec:pipeline}
 The accuracy of incremental dependency parsers is well established on the Wall
 Street Journal, but there are no dependency parsing results in the literature
 that make it easy to put our joint model's parsing accuracy into context.
-We therefore compare our joint model to a pipeline approach, using two state-of-the-art
+We therefore compare our joint model to pipeline approaches, using two state-of-the-art
 disfluency detection systems. On the development data, we also evaluate parse
 accuracies after oracle disfluency detection.
 
@@ -1014,8 +1010,8 @@ success of our joint model seems to confirm this.
 
 Our joint model's disfluency detection accuracy is not significantly different from
 the current state-of-the-art, \citet{qian:13}, despite having approximately 50\%
-as much training data (as we require syntactic annotation).
-\footnote{Our scores refer to an updated version of the system
+as much training data (as we require syntactic annotation).\footnote{
+Our scores refer to an updated version of the system
 that corrects minor pre-processing problems. We thank the Qian Xian for making
 his code available.}
 Our significance testing regime involves training multiple
