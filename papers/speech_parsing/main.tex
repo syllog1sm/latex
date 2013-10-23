@@ -1010,16 +1010,17 @@ text.
     \begin{tabular}{l|rrr|rr}
         & P & R & F & \textsc{uas} & \textsc{las} \\
         \hline \hline
-Baseline joint parser  &	79.6	&	70.6	&	74.8	&	89.9	&	86.9 \\
-+Features             &	86.0	&	77.6	&	81.6	&	90.3	&	87.4 \\
-+Edit transition      &	92.2	&	80.7	&	86.1	&	90.9	&	87.9 \\
+Baseline joint parser &	79.4	&	70.1	&	74.5	&	89.9	&	86.9 \\
++Features &	86.0	&	77.2	&	81.3	&	90.5	&	87.5 \\ 
++Edit transition &	92.2	&	80.2	&	85.8	&	90.9	&	87.9 \\ 
 \hline       
 Oracle pipeline  & 100 & 100 & 100 & 91.6    & 88.6 \\
 \hline
     \end{tabular}
-    \caption{\small Development results for the joint models.  Disfluencies reduce
-        parse accuracy by 1.7\% Unlabelled Attachment Score (\textsc{uas}) for
-        the baseline model. Our features and Edit transition reduce the gap to
+    \caption{\small Development results for the joint models.  For the baseline model,
+        disfluencies reduce
+        parse accuracy by 1.7\% Unlabelled Attachment Score (\textsc{uas}). 
+        Our features and Edit transition reduce the gap to
         0.7\%, and improve disfluency detection by 11.3\% $F$-measure.
         \label{tab:dev}}
 \end{table}
@@ -1035,7 +1036,7 @@ Johnson et al pipeline      & 82.1 & 90.3 \\
 Qian and Liu  pipeline     & 83.9 & 90.1  \\
 \hline
 Baseline joint parser & 73.9 & 89.4 \\
-Final joint parser    & 84.0 & \textbf{90.5} \\
+Final joint parser    & 84.1 & \textbf{90.5} \\
 \hline
     \end{tabular}
     \caption{\small Test-set parse and disfluency accuracies.
