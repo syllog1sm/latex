@@ -151,10 +151,11 @@ We extend the transition system with a novel non-monotonic transition, Edit.
 It allows sentences like `\emph{Pass the pepper uh salt}'
 to be parsed incrementally, without the need to guess early that \emph{pepper}
 is disfluent.  This is achieved by re-processing the leftward children of
-the word Edit marks as disfluent, which means that the parser is not committed
-to a mistake if it attaches \emph{the} to \emph{pepper}.  All arcs to and from
-disfluent words are deleted, and the fluent parse is scored using the Sparseval
-measure.  We also exploit the ease with which the model can incorporate arbitrary
+the word Edit marks as disfluent.  For instance, if the parser attaches \emph{the}
+to \emph{pepper}, but subsequently marks \emph{pepper} as disfluent, \emph{the} will
+be re-processed.
+
+We also exploit the ease with which the model can incorporate arbitrary
 features, and design a set of disfluency features that capture the
 `rough copy' structure of some speech repairs, which motivated the
 \citet{Johnson04a} noisy channel model.
@@ -201,10 +202,11 @@ We follow most previous work in restricting our attention to speech repairs.
 
 The \textsc{mrg} and \textsc{dps} layers have high but imperfect agreement over
 what tokens they mark as speech repairs: of the text annotated with both layers,
-the \textsc{dps} files call 32,310 tokens part of a reparandum, while 32,742 are
-under \textsc{edited} nodes in the syntactic annotation, with 33,720 tokens marked
-disfluent in at least one layer. We use the \textsc{mrg} layer, as we need syntactic
-annotations to train and evaluate our joint syntactic parser.
+33,720 tokens are marked as disfluent in at least one layer, 32,310 are only marked
+as disfluent by the \textsc{dps} files, and 32,742 are only marked as disfluent
+by the \textsc{mrg} layer.
+We use the \textsc{mrg} layer, as we need syntactic annotations to train and
+evaluate our joint syntactic parser.
 
 \subsection{Dependency conversion}
 
@@ -216,7 +218,7 @@ At first we feared that the filled pauses, disfluencies and meta-data tokens in
 the Switchboard corpus might disrupt the conversion process, by making it more
 difficult for the converter to recognise the underlying production rules.
 
-To test this, we prepared two versions of the corpus, both with oracle pre-processing:
+To test this, we performed a small experiment. We prepared two versions of the corpus:
 one where \textsc{edited} nodes, filled pauses and meta-data were removed before
 the trees were transformed by the Stanford converter, and one where the disfluency
 removal was performed after the dependency conversion. The resulting corpora
@@ -227,7 +229,7 @@ trained on dependency trees that also included governors for disfluent words.
 
 We follow previous work on disfluency detection by lower-casing the text and
 removing punctuation and partial words (words tagged XX and words ending in
-`-').  We also filter out one- and two-token sentences, as their syntactic
+`-').  We also remove out one-token sentences, as their syntactic
 analyses are trivial.
 We found that two additional simple pre-processes improved our results: discarding
 all `um' and `uh' tokens; and merging `you know' and `i mean' into single tokens.
@@ -239,7 +241,7 @@ tokens over 99.9\% of the times they occur in the treebank, with \emph{you} and 
 never having any children. This makes it easy to unmerge the tokens deterministically
 after parsing:
 all incoming and outgoing arcs will point to \emph{know} or \emph{mean}.
-
+The same pre-processing was performed for all our parsing systems.
 
 \section{Transition-based dependency parsing}
 
@@ -298,9 +300,9 @@ Disfluencies are added to $D$ via the Edit transition, E, which we now define.
     \hline
     $(\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1...x_n, j | \beta,A',D')$ & E \\
     Where \\
-    $A \setminus A' = \{x \rightarrow y : \forall x,y \in \mathbb{N}\;\mathrm{s.t.}\;x = i\;\mathrm{or}\;y = i\} $\\
+    $A' = A \setminus \{x \rightarrow y\;\mathrm{or}\; y \rightarrow x : \forall x \in \{i...j-1\}, \forall y \in \mathbb{N} \}$ \\
     %Rsuch that $x = i$ or $y = i \}$ \\
-    $D' \setminus D = \{i...j-1\}$ \\
+    $D' = D \cup \{i...j-1\}$ \\
     $x_1...x_n$ are the former left children of $i$ \\
     \end{tabular}
     \caption{\small Our parser's transition system.  The first four transitions
@@ -347,10 +349,11 @@ repairs.
     \depedge[edge unit distance=0.7ex]{7}{4}{}
     \depedge[edge unit distance=0.6ex]{1}{7}{}
     \end{dependency}
-    \caption{\small Example where `temporary edges' between the reparandum and the
-    fluent sentence complicate parsing. In order to learn a projective tree
-    for the sentence, the parser would have to learn not to assign the dotted
-    edges below. We instead make the parsing process non-monotonic.
+    \caption{\small Example where apparent dependencies between the reparandum and the
+    fluent sentence complicate parsing.  The dotted edges are difficult for an
+    incremental parser to avoid, but cannot be part of the final parse if it is to
+    be a projective tree. Our solution is to make the transition system non-monotonic:
+    the parser is able to delete edges.
 \label{fig:rectangle}}
 \end{figure}
 
@@ -361,19 +364,19 @@ restores the words both preceding and formerly governed by $i$ to the stack.
 
 In other words, the word on top of the stack and its \emph{rightward descendents}
 are all marked as disfluent, and the stack is popped. We then restore its
-leftward children to the stack, to be re-processed.
-All dependencies to and from words marked disfluent are deleted. 
+leftward children to the stack, and
+all dependencies to and from words marked disfluent are deleted. 
 The transition is \emph{non-monotonic} in the sense that it can delete dependencies
-that the parser had previously proposed, and replace tokens onto the stack for
-further processing. 
+created by a previous transition, and replace tokens onto the stack that had been
+popped.
 
-Why revisit the leftward children, but not the right? The logic here is that we
+Why revisit the leftward children, but not the right? We
 are concerned about dependencies which might be mirrored between the reparandum
 and the repair. The rightward subtree of the disfluency might well be incorrect,
 but if it is, it would still be incorrect if the word on top of the stack weren't
 disfluent --– so we regard these as parsing errors that we will train our model
 to avoid. In contrast, avoiding the Left-Arc transitions would require the parser to
-predict that the head is disfluent, when it has not necessarily seen any evidence
+predict that the head is disfluent when it has not necessarily seen any evidence
 indicating that.
 
 \subsection{Worked example}
@@ -593,13 +596,13 @@ Recent work has shown that this can be advantageous
 \citep{sartorio:13,honnibal:13,goldberg:12}, because difficult decisions can
 sometimes be delayed until more information is available.
 
-The state in Line 5 of Figure \ref{fig:bankrupt} is an example of a state that
+Line 5 of Figure \ref{fig:bankrupt} shows a state that
 introduces spurious ambiguity.
 From this configuration, there are multiple actions that could be considered
-`correct', in the sense that they do not exclude the gold-standard analysis.
+`correct', in the sense that the gold-standard analysis can be derived from them.
 The Edit transition is correct because \emph{went} is disfluent, but the
 Left-Arc and even the Right-Arc are also correct, in that there are continuations
-from them that lead to a fully correct analysis.
+from them that lead to the gold-standard analysis.
 
 We regard all transition sequences that can result in the correct analysis as
 equally valid, and want to avoid stipulating one of them during training.  
@@ -618,21 +621,31 @@ perceptron with beam-search decoding.
 \small
 \begin{verbatim}
 def train(S, G, k):
+  # S is a sentence,
+  # G is the gold-standard,
+  # k is the beam width
   pred = priority_queue((0, state(S)))
   gold = priority_queue((0, state(S)))
   max_violn = (0, None, None)
+  # A state is finished when its buffer
+  # is exhausted and its stack is empty.
   while not is_finished(pred[0][1]) and \
         not is_finished(gold[0][1]):
     pred = extend_beam(pred, k, G, 0)
     gold = extend_beam(gold, k, G, 1)
     p = pred[0]
-    cost = dynamic_oracle(p)
+    # The dynamic oracle determines the
+    # number of gold-standard arcs that
+    # are unreachable from a state
+    cost = dynamic_oracle(p, G)
     if cost >= 1:
       g = gold[0]
       v = p[0] - g[0]
       if v >= max_violn[0]:
         max_violn = (v, p[1], g[1])
-  update_weights(max_violn)
+  # Update perceptron weights following
+  # Collins (2002)
+  update_weights(max_violn[1], [2])
 
 def extend_beam(beam, k, G, is_gold):
   ext = priority_queue()
@@ -685,13 +698,13 @@ and processed again.  This has little to no impact on the algorithm's empirical
 efficiency, although worst-case complexity is no longer linear, but it does
 pose a problem for decoding.
 
-The perceptron model tends to assign
-high scores to its top prediction.\footnote{Recall that each training instance
-involves adding 1.0 to the weights for the correct class, and -1.0 to the weights
-for the predicted class, over several iterations. The correct class stays the
-same, while the predictions may vary, so the negative weight tends to be split
-among multiple classes. This is why the top prediction on an instance almost
-always has a high positive weight.}
+The perceptron model tends to assign large positive scores to its top prediction.
+\footnote{Recall that each training instance
+involves adding 1.0 to the weights for the highest-scoring correct class,
+and -1.0 to the weights for the predicted class, over several iterations. There
+are many more possible wrong answers than there are right answers, so the negative
+weight tends to be split across more classes. This is why the top prediction on
+an instance almost always has a high positive weight.}
 We thus observed a problem when comparing paths of different lengths, at the end
 of the sentence. Paths that included Edit transitions were longer,
 so the sum of their scores tended to be higher.
@@ -726,20 +739,20 @@ children (\nzero, \nzeroL, \nzeroLL), and the next two words of the buffer (N1, 
 
 Atomic features consist of the word, part-of- speech tag, or dependency label
 for these tokens; and multiple feature atoms are often combined for feature
-templates. The feature set also considers the string-distance between \szero
+templates. There are also features for the string-distance between \szero
 and \nzero, and the left and right valencies
-(total number of children) for \szero and \nzero, as well as the set of dependency
-labels assigned in their subtrees. We restrict the label set features
+(total number of children) of \szero and \nzero, as well as the set of their children's
+dependency labels. We restrict these
 to the first and last 2 children for implementation efficiency, as we found this
 had no effect on accuracy. Numeric features (for distance and valency) are binned
 with the function $\lambda x: \max(x, 5)$.
 There is only one bi-lexical feature template, which pairs
 the words of \szero and \nzero.
-There are also ten tri-tag templates, which consider the
+There are also ten tri-tag templates, for the
 \pos tag of \szero, \nzero, and various other context tokens.
 
-We added additional dependency label features to the baseline feature
-set, as we found that disfluency detection errors often resulted in ungrammatical
+Our feature set includes additional dependency label features not used by \citet{zhang:11},
+as we found that disfluency detection errors often resulted in ungrammatical
 dependency label combinations.  The additional templates combine the \pos tag of \szero with
 two or three dependency labels from its left and right subtrees.  Details can be found in
 the supplementary materials.
@@ -777,13 +790,12 @@ that they did not improve accuracy on fluent text.
 
 \citet{Johnson04a} point out that in speech repairs, the repair is often a `rough
 copy' of the reparandum.  The simplest case of this is where the repair is a single
-word repetition. In more complex cases, some of the wording or grammatical
-structure will be the same, and the rest will be different.  
+word repetition.
 It is common for the repair to differ from the reparandum by insertion, deletion
 or substitution of one or more words.
 
-To capture this regularity, we first extend the feature-set to track three new
-\emph{context tokens}:\footnote{As is common
+To capture this regularity, we first extend the feature-set with three new
+context tokens:\footnote{As is common
 in this type of parser, our implementation has a number of vectors for properties
 that are defined before parsing, such as word forms, \textsc{pos} tags, Brown
 clusters, etc. A context token is an index into these vectors, allowing
@@ -1014,7 +1026,7 @@ Baseline joint parser &	79.4	&	70.1	&	74.5	&	89.9	&	86.9 \\
 +Features &	86.0	&	77.2	&	81.3	&	90.5	&	87.5 \\ 
 +Edit transition &	92.2	&	80.2	&	85.8	&	90.9	&	87.9 \\ 
 \hline       
-Oracle pipeline  & 100 & 100 & 100 & 91.6    & 88.6 \\
+Oracle pipeline  & 100 & 100 & 100 & 91.7    & 88.6 \\
 \hline
     \end{tabular}
     \caption{\small Development results for the joint models.  For the baseline model,
@@ -1050,48 +1062,37 @@ Final joint parser    & 84.1 & \textbf{90.5} \\
 
 Table \ref{tab:test} shows the final evaluation.  
 Our main comparison is with the two pipeline systems, described in Section
-\ref{sec:pipeline}. 
-The final joint parser is 0.2\% more accurate than the best pipeline system, and
-0.4\% better than the other.
-The \citet{Johnson04a} noisy channel model has a lower
-disfluency score, but results in a more accurate parser. We attribute this to
-the use of a syntactic language model, which seems to make its output more
-syntactically consistent.
+\ref{sec:pipeline}.  The \citet{Johnson04a} system was 1.8\% less
+accurate at disfluency detection than the other disfluency detector we evaluated,
+the state-of-the-art \citet{qian:13} system.  However, when we evaluated the two
+systems as pre-processors before our parser, we found that the
+\textbf{Johnson et al pipeline} achieved 0.2\% better unlabelled attachment score
+than the \textbf{Qian and Liu pipeline}.  We attribute this to the use of the
+\citet{Charniak01a} syntactic language model in the Johnson et al pipeline, which
+would help the system produce more syntactically consistent output.
 
-The \citet{Johnson04a} system can be made to output the parse assigned to the
-top-ranked candidate, so it does not necessarily need a parser as a post-process.
-However, conditional parsers are typically more accurate than syntactic
-language models, motivating the
-\emph{parser}~$\rightarrow$~\emph{disfluency~detector}~$\rightarrow$~\emph{parser}
-pipeline we have used in the Johnson et al system.
-Despite a disfluency detection disadvantage of 1.8\%, this produced higher parse
-accuracies than the Qian and Liu pipeline, which went
-\emph{disfluency~detector}~$\rightarrow$~\emph{parser}.  
-We take this as good motivation for joint modelling: if both tasks need
-the other as a pre-process, then it makes sense to do them at once.  The
-success of our joint model, which out-performed both pipelines,
-seems to confirm this.
+Our joint model achieved an unlabelled attachment score of 90.5\%, out-performing
+both pipeline systems.  The \textbf{Baseline joint parser}, which did not include
+the Edit transition or disfluency features, scores 1.1\% below the
+\textbf{Final joint parse}.  All of the parse accuracy differences were found to
+be statistically significant ($p<0.001$).
 
-Our joint model's disfluency detection accuracy is slightly higher than
-the current state-of-the-art, \citet{qian:13}\footnote{
+The Edit transition and disfluency features brought a 10.1\% improvement
+in disfluency $F$-measure, which was also found to be statistically significant.
+The final joint parser achieved 0.2\% higher disfluency detection accuracy than
+the previous state-of-the-art, the \citet{qian:13} system,\footnote{
 Our scores refer to an updated version of the system
-that corrects minor pre-processing problems. We thank the Qian Xian for making
-his code available.}, despite having approximately 50\%
+that corrects minor pre-processing problems. We thank Qian Xian for making
+his code available.} despite having approximately 50\%
 as much training data (as we require syntactic annotation, for which there is
-less data).  However, we doubt that the improvement would prove statistically
-significant, if we had a way to apply our significance testing regime to the
-other disfluency systems.
+less data).
 
-Our significance testing regime involves training multiple
-models of our parser with different random seeds, so could not be applied to
-the other two disfluency detectors.  However, our system's disfluency scores
-on the test set ranged
-from 83.3-84.6 over the 20 samples we collected, so it seems unlikely that
-the 0.1\% improvement over the \citet{qian:13} system would prove significant,
-if we had more than one sample for it.\footnote{
-Note that we do perform significance tests for the \emph{parse accuracy} of the
-two pipeline systems, by training our parser with different random seeds ---
-but each sample has the same disfluency-detected input.}
+Our significance testing regime involved using 20 different random seeds when
+training each of our models, which the perceptron algorithm is sensitive to.
+This could not be applied to the other two disfluency detectors, so we cannot
+test those differences for significance.  However, we note that the 20 samples
+for our disfluency detector ranged in accuracy from 83.3-84.6, so we doubt
+that 0.2\% mean improvement over the \citet{qian:13} result is meaningful.
 
 Although we did not systematically
 optimise on the development set, our test scores are lower than our development
@@ -1102,53 +1103,39 @@ which dropped in accuracy by 0.5\%.
 
 In order to understand how the parser applies the Edit transition, we
 collected some additional statistics over the development data.
-The parser predicted 2,459 Edit transitions,
-which together marked 2,702
-words disfluent (2,462 correctly).
-%The model largely assigns disfluency labels
-%word-by-word, only sometimes marking rightward branches disfluent.
+The parser predicted 2,558 Edit transitions,
+which together marked 2706
+words disfluent (2,495 correctly).  The Edit transition can mark multiple words
+disfluent when S0 has one or more rightward descendants. It turns out this case
+is uncommon.
+The parser largely assigns disfluency labels
+word-by-word, only sometimes marking words with rightward descendents as disfluent.
 
-Of the 2,459 Edit transitions, 1554 had no leftward children, 512 returned one word,
-and another 393 together returned a total of 1080 words to the stack. Looked at
-another way, 1,592 leftward children were returned to the stack, from
-2,459 \textsc transitions.
+Of the 2,558 Edit transitions, there were 682 cases were at least one leftward
+child was returned, and the total number of leftward children returned was 1,132.
+The most common type of construction were disfluent predicates, where the leftward
+children were subjects and discourse conjunctions.  An example of a disfluent
+predicate with a fluent subject is shown in Figure \ref{fig:bankrupt}.
 
-Of the 1,592 instances of a word being returned to the stack, 121 were cases where
-the same word was returned two or more times\footnote{
-A word can be returned to the stack twice by being Left-Arced twice by words later
-marked as disfluent.}
-    --- i.e. 1,471 tokens were returned
-to the stack at least once, for a total of 1,592 returnings.
-The 1,471 tokens break down as follows:
-\vspace*{-0.5em}
-\begin{itemize}
-    \itemsep0ex
-    \item 607 were subsequently marked as disfluent
-        \begin{itemize}
-            \itemsep0ex
-            \item 562 correctly
-            \item 45 incorrectly
-        \end{itemize}
-    \item 864 were marked fluent.
-        \begin{itemize}
-            \itemsep0ex
-            \item 699 were ultimately correct
-            \item 165 were ultimately incorrect
-            \begin{itemize}
-                \itemsep0ex
-                \item 26 were actually disfluent
-                \item 139 were fluent, but received the wrong head.
-            \end{itemize}
-        \end{itemize}
-\end{itemize}
+There were only 48 cases of the same word being returned to the stack twice. The
+possibility of words being returned to the stack multiple times is what gives our
+system worse than linear worst-case complexity. In the worst case, the $i$th word
+of a sentence of length $n$ could be returned to the stack $n-(i+1)$ times.
+Empirically, the Edit transition made no difference to run-time.
 
-The first thing we take away from these figures is that the case that the \edittrans
-transition is designed to cover is quite common, relative to the number of edited
-words.  The parser made 864 provisional left-arcs, for 2,702 words marked as 
-edits.  We also note that even though the parser must make multiple decisions for
-those words (by returning them to the stack), it has high recall at marking these
-words disfluent (only 26 false negatives), and its precision is similar to
-the parser's overall disfluency detection score.
+Once a word has been returned to the stack by the Edit transition, how does the
+parser end up analysing it?  If it turned out that almost all of the former leftward
+children of disfluent words are subsequently marked as disfluent, there would
+be little point in returning them to the stack --- we could just mark them as
+disfluent in the original Edit transition.  On the other hand, if they are
+almost all marked as fluent, perhaps they can just be attached as children
+to the first word of the buffer.
+
+In fact the two cases are almost equally common.  Of the 1,132 words returned
+to the stack, 547 were subsequently marked disfluent, and 584 were not.  The
+parser was also quite accurate in its decisions over these tokens.  Of the 547
+tokens marked disfluent, 500 were correct --- similar to the overall development set 
+precision, 92.2\%.
 
 \section{Related Work}
 
