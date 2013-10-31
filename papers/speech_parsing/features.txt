@@ -1,0 +1,407 @@
+======================================================================
+Feature templates for the joint disfluency detection and parsing model
+======================================================================
+
+Context tokens
+--------------
+
+Most of our features refer to the following parts of the context. See the first
+paragraph of Section 5.
+
+S0
+The token on top of the stack.
+
+N0
+The token at the start of the buffer
+
+N1
+The second token of the buffer
+
+N2
+The third token of the buffer
+
+S0h
+The head of S0, if it exists
+
+S0h2
+The head of the head of S0, if it exists
+
+S0L
+The leftmost child of S0, if it exists
+
+S0L2
+The second-leftmost child of S0, if it exists
+
+S0R
+The rightmost child of S0, if it exists
+
+S0R2
+The second-rightmost child of S0, if it exists
+
+N0L
+The leftmost child of N0, if it exists
+
+N0L2
+The second-leftmost child of N0, if it exists
+
+New context tokens:
+S0L0
+The leftward child of S0 that's closest to it, e.g. in "The fast red expensive car",
+"The" is S0L, "red" is S0L2, and "expensive" is S0L0.
+
+S0R0
+The rightward child of S0 that's closest to it.
+
+N0L0
+The leftward child of N0 that's closest to it.
+
+S0LE
+The leftmost edge of S0's subtree. For instance, in "The children studied", "the"
+is attached to "children", which is attached to "studied". "the" is the leftmost
+edge of the subtree of "studied".
+See Section 5.2, Rough copy features.
+
+S0RE
+The rightmost edge of S0's subtree. For instance, in "the pizza that I ate last night",
+"night" is the rightmost edge of the subtree of "pizza".
+See Section 5.2, Rough copy features.
+
+N0LE
+The leftmost edge of N0's subtree. For instance, in "very fast cars", "very" is
+attached to "fast", which is attached to "cars". "very" is the leftmost edge of
+the subtree of "cars".
+See Section 5.2, Rough copy features.
+
+
+
+
+Token properties
+----------------
+
+We will describe a template as a tuple of one or more _token properties_.
+A token property is something like "POS-tag of the word on top of the stack".
+
+The token properties are as follows (listed with S0 as an example context token):
+
+S0w
+Word form
+
+S0p
+POS tag
+
+S0c
+Full Brown cluster
+
+S0c6
+Length-6 prefix of the Brown cluster (see Koo et al (2008))
+
+S0c4
+Length-4 prefix of the Brown cluster (see Koo et al (2008))
+
+S0l
+Dependency label used to attach the word to its governor.
+
+S0lv
+Leftward valency -- i.e. number of leftward children
+
+S0rv
+Rightward valency -- i.e. number of rightward children
+
+The following features do not reference any specific token
+
+wcopy
+The length of word-match between S0's subtree and N0's subtree. See Section 5.2,
+"Rough copy features".
+
+pcopy
+The length of POS-match between S0's subtree and N0's subtree. See Section 5.2,
+"Rough copy features".
+
+wexact
+Boolean feature indicating whether there is a full word-match between S0's subtree
+and N0's subtree. See Section 5.2, "Rough copy features".
+
+pexact
+Boolean feature indicating whether there is a full POS-tag match between S0's
+subtree and N0's subtree. See Section 5.2, "Rough copy features".
+
+prev_edit
+Is the word at index N0-1 marked disfluent? See Section 5.4, "Edited neighbour features"
+
+prev_prev_edit
+Is the pair of words (N0-2, N0-1) marked disfluent? See Section 5.4, "Edited neighbour features"
+
+prev_edit_wmatch
+If the word at index N0-1 is disfluent, does it word-match N0? Used for repetitions,
+e.g. I I
+
+prev_edit_pmatch
+If the word at index N0-1 is disfluent, does it POS-tag match N0?
+
+prev_edit_pos
+If the word at index N0-1 is disfluent, what is its POS tag?
+
+prev_edit_word
+If the word at index N0-1 is disfluent, what is its word?
+
+next_edit
+Is the word at S0+1 marked disfluent? See Section 5.4, "Edited neighbour features"
+
+next_edit_wmatch
+If the word at S0+1 is marked disfluent, does it word-match S0?
+
+next_edit_pmatch
+If the word at S0+1 is marked disfluent, does it POS-tag match S0?
+
+next_edit_word
+If the word at S0+1 is marked disfluent, what is its word?
+
+next_edit_pos
+If the word at S0+1 is marked disfluent, what is its POS tag?
+
+next_next_edit
+Are the word at (S0+1, S0+2) both marked disfluent?
+
+Baseline templates
+------------------
+
+We now list the feature templates drawn from Zhang and Nivre (2011), divided
+as they present them.
+
+
+from_single = (
+    (S0w, S0p),
+    (S0w,),
+    (S0p,),
+    (N0w, N0p),
+    (N0w,),
+    (N0p,),
+    (N1w, N1p),
+    (N1w,),
+    (N1p,),
+    (N2w, N2p),
+    (N2w,),
+    (N2p,)
+)
+
+
+
+from_word_pairs = (
+   (S0w, S0p, N0w, N0p),
+   (S0w, S0p, N0w),
+   (S0w, N0w, N0p),
+   (S0w, S0p, N0p),
+   (S0p, N0w, N0p),
+   (S0w, N0w),
+   (S0p, N0p),
+   (N0p, N1p)
+)
+
+
+from_three_words = (
+   (N0p, N1p, N2p),
+   (S0p, N0p, N1p),
+   (S0hp, S0p, N0p),
+   (S0p, S0lp, N0p),
+   (S0p, S0rp, N0p),
+   (S0p, N0p, N0lp)
+)
+
+
+distance = (
+   (dist, S0w),
+   (dist, S0p),
+   (dist, N0w),
+   (dist, N0p),
+   (dist, S0w, N0w),
+   (dist, S0p, N0p),
+)
+
+valency = (
+   (S0w, S0rv),
+   (S0p, S0rv),
+   (S0w, S0lv),
+   (S0p, S0lv),
+   (N0w, N0lv),
+   (N0p, N0lv),
+)
+
+
+unigrams = (
+   (S0hw,),
+   (S0hp,),
+   (S0lw,),
+   (S0lp,),
+   (S0rw,),
+   (S0rp,),
+   (N0lw,),
+   (N0lp,),
+)
+
+
+third_order = (
+   (S0h2w,),
+   (S0h2p,),
+   (S0l2w,),
+   (S0l2p,),
+   (S0r2w,),
+   (S0r2p,),
+   (N0l2w,),
+   (N0l2p,),
+   (S0p, S0lp, S0l2p),
+   (S0p, S0rp, S0r2p),
+   (S0p, S0hp, S0h2p),
+   (N0p, N0lp, N0l2p)
+)
+
+
+labels = (
+   (S0l,),
+   (S0ll,),
+   (S0rl,),
+   (N0ll,),
+   (S0hl,),
+   (S0l2l,),
+   (S0r2l,),
+   (N0l2l,),
+)
+
+
+label_sets = (
+   (S0w, S0rl, S0r2l),
+   (S0p, S0rl, S0r2l),
+   (S0w, S0ll, S0l2l),
+   (S0p, S0ll, S0l2l),
+   (N0w, N0ll, N0l2l),
+   (N0p, N0ll, N0l2l),
+)
+
+
+Additional label features
+-------------------------
+
+We add some extra label features. These are used by all our parsers, including
+the baseline and pipeline models.
+
+
+extra_labels = (
+    (S0p, S0ll, S0lp),
+    (S0p, S0ll, S0l2l),
+    (S0p, S0rl, S0rp),
+    (S0p, S0rl, S0r2l),
+    (S0p, S0ll, S0rl),
+    (S0p, S0rl, S0r2l),
+    (S0hp, S0l, S0rl),
+    (S0hp, S0l, S0ll),
+)
+
+
+Edge-token features
+-------------------
+
+We add features for the edge tokens. These are also used by all our parsers.
+
+
+edges = (
+    (S0rew,),
+    (S0rep,),
+    (S0rew, S0rep),
+    (S0lew,),
+    (S0lep,),
+    (S0lew, S0lep),
+    (N0lew,),
+    (N0lep,),
+    (N0lew, N0lep),
+    (S0rep, N0p,),
+    (S0p, N0lep)
+)
+
+
+Brown cluster features
+----------------------
+
+Our Brown cluster templates, adapted from Koo et al (2008). These are
+also added to all our parsing models
+
+# Koo et al (2008) dependency features, using Brown clusters.
+clusters = (
+    # Koo et al have (head, child) --- we have S0, N0 for both.
+    (S0c4, N0c4),
+    (S0c6, N0c6),
+    (S0c, N0c),
+    (S0p, N0c4),
+    (S0p, N0c6),
+    (S0p, N0c),
+    (S0c4, N0p),
+    (S0c6, N0p),
+    (S0c, N0p),
+    # Siblings --- right arc
+    (S0c4, S0rc4, N0c4),
+    (S0c6, S0rc6, N0c6),
+    (S0p, S0rc4, N0c4),
+    (S0c4, S0rp, N0c4),
+    (S0c4, S0rc4, N0p),
+    # Siblings --- left arc
+    (S0c4, N0lc4, N0c4),
+    (S0c6, N0c6, N0c6),
+    (S0c4, N0lc4, N0p),
+    (S0c4, N0lp, N0c4),
+    (S0p, N0lc4, N0c4),
+    # Grand-child, right-arc
+    (S0hc4, S0c4, N0c4),
+    (S0hc6, S0c6, N0c6),
+    (S0hp, S0c4, N0c4),
+    (S0hc4, S0p, N0c4),
+    (S0hc4, S0c4, N0p),
+    # Grand-child, left-arc
+    (S0lc4, S0c4, N0c4),
+    (S0lc6, S0c6, N0c6),
+    (S0lp, S0c4, N0c4),
+    (S0lc4, S0p, N0c4),
+    (S0lc4, S0c4, N0p)
+)
+
+Disfluency features
+-------------------
+
+We add the following disfluency-targetted features to our disfluency parser,
+but not the baseline, pipeline, or oracle models. They were found ineffective
+in the oracle and pipeline models.
+
+disfl = (
+    (prev_edit,),
+    (prev_prev_edit,),
+    (prev_edit_wmatch,),
+    (prev_edit_pmatch,),
+    (prev_edit_word,),
+    (prev_edit_pos,),
+    (wcopy,),
+    (pcopy,),
+    (wexact,),
+    (pexact,),
+    (wcopy, pcopy),
+    (wexact, pexact),
+    (wexact, pcopy),
+    (wcopy, pexact),
+    (prev_edit, wcopy),
+    (prev_prev_edit, wcopy),
+    (prev_edit, pcopy),
+    (prev_prev_edit, pcopy),
+    (next_edit,),
+    (next_next_edit,),
+    (next_edit_wmatch,),
+    (next_edit_pmatch,),
+    (next_edit_word,),
+    (next_edit_pos,),
+    (next_edit, wcopy),
+    (next_next_edit, wcopy),
+    (next_edit, pcopy),
+    (next_next_edit, pcopy),
+)
+
+Match features
+--------------
+
+As described in Section 5.3, we add features for word and POS-tag matches amongst
+the context tokens. We do not list these here, as we add them exhaustively.
+
