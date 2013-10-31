@@ -153,7 +153,7 @@ to be parsed incrementally, without the need to guess early that \emph{pepper}
 is disfluent.  This is achieved by re-processing the leftward children of
 the word Edit marks as disfluent.  For instance, if the parser attaches \emph{the}
 to \emph{pepper}, but subsequently marks \emph{pepper} as disfluent, \emph{the} will
-be re-processed.
+be returned to the stack.
 
 We also exploit the ease with which the model can incorporate arbitrary
 features, and design a set of disfluency features that capture the
@@ -165,9 +165,10 @@ state-of-the-art disfluency detection systems as pre-processors to our
 parser, minus the custom disfluency features and transition.
 The joint model compared favourably to the pipeline parsers at both tasks, with
 an unlabelled attachment score of 90.5\%, and 84.0\% accuracy at detecting speech
-repairs. The system is also quite efficient, and has quite promising future prospects.
-Because the parser is incremental, it should be well suited
-unsegmented text such as the output of speech-recognition systems.
+repairs. An efficient implementation is available at \verb|<anonymized>|
+under an open source license. The future prospects of the system are also quite promising.
+Because the parser is incremental, it should be well suited to
+unsegmented text such as the output of a speech-recognition system.
 
 \section{Switchboard disfluency annotations}
 \label{sec:swbd}
@@ -298,11 +299,11 @@ Disfluencies are added to $D$ via the Edit transition, E, which we now define.
         $(\sigma | i, \beta, A, D) \vdash ( \sigma, \beta, A, D )$ \hfill & \hfill  D \\
         \multicolumn{2}{c}{Only if $i$ has an incoming arc.}\\
     \hline
-    $(\sigma | i, j | \beta, A, D) \vdash (\sigma | x_1...x_n, j | \beta,A',D')$ & E \\
+    $(\sigma | i, j | \beta, A, D) \vdash (\sigma | [x_1, x_n], j | \beta,A',D')$ & E \\
     Where \\
-    $A' = A \setminus \{x \rightarrow y\;\mathrm{or}\; y \rightarrow x : \forall x \in \{i...j-1\}, \forall y \in \mathbb{N} \}$ \\
+    $A' = A \setminus \{x \rightarrow y\;\mathrm{or}\; y \rightarrow x : \forall x \in [i, j), \forall y \in \mathbb{N} \}$ \\
     %Rsuch that $x = i$ or $y = i \}$ \\
-    $D' = D \cup \{i...j-1\}$ \\
+$D' = D \cup [i, j)$ \\
     $x_1...x_n$ are the former left children of $i$ \\
     \end{tabular}
     \caption{\small Our parser's transition system.  The first four transitions
@@ -607,85 +608,98 @@ from them that lead to the gold-standard analysis.
 We regard all transition sequences that can result in the correct analysis as
 equally valid, and want to avoid stipulating one of them during training.  
 We achieve this by following \citet{goldberg:12} in using a
-\emph{dynamic oracle} to create partially labelled training data. 
-A dynamic oracle is a function that determines the \emph{cost} of applying an
+\emph{dynamic oracle} to create partially labelled training data.\footnote{
+The training data is partially labelled in the sense that instances can have multiple
+true labels.}
+A dynamic oracle is a function that determines the cost of applying an
 action to a state, in terms of gold-standard arcs that are newly unreachable.
-Our training data is partially labelled
-in the sense that there can be multiple zero-cost actions for a configuration.
+In contrast, most previous work on dependency parsing, including all work using
+beam-search decoding, assume a single gold-standard transition history.
 
-\citet{goldberg:12} describe how a perceptron model with greedy decoding can be
-trained using a dynamic oracle.  We adapt their algorithm for the structured
-perceptron with beam-search decoding.
+We follow \citet{collins:02} in training an averaged perceptron model to predict
+transition \emph{sequences}, rather than individual transitions.  This type of model
+is often referred to as a structured perceptron, or sometimes a global perceptron.
+The structured perceptron is much better for beam-search decoding than a local
+model, due to the label bias problem \citep{zhang:12}.
+Since the structured perceptron algorithm is now quite well known, we refer
+readers to the original presentation in \citet{collins:02}, or more recent work
+by \citet{huang:12}, for an explanation of how weights are updated during training.
+
+
+%\citet{goldberg:12} describe how a perceptron model with greedy decoding can be
+%trained using a dynamic oracle.  We adapt their algorithm for the structured
+%perceptron with beam-search decoding.
 
 \begin{figure}
 \small
 \begin{verbatim}
-def train(S, G, k):
+def find_update(S, G, W, T, k):
   # S is a sentence,
   # G is the gold-standard,
+  # T is a list of transitions,
+  # W is a list of weight vectors
   # k is the beam width
-  pred = priority_queue((0, state(S)))
-  gold = priority_queue((0, state(S)))
-  max_violn = (0, None, None)
-  # A state is finished when its buffer
-  # is exhausted and its stack is empty.
-  while not is_finished(pred[0][1]) and \
-        not is_finished(gold[0][1]):
-    pred = extend_beam(pred, k, G, 0)
-    gold = extend_beam(gold, k, G, 1)
-    p = pred[0]
-    # The dynamic oracle determines the
-    # number of gold-standard arcs that
-    # are unreachable from a state
-    cost = dynamic_oracle(p, G)
-    if cost >= 1:
-      g = gold[0]
-      v = p[0] - g[0]
-      if v >= max_violn[0]:
-        max_violn = (v, p[1], g[1])
-  # Update perceptron weights following
-  # Collins (2002)
-  update_weights(max_violn[1], [2])
-
-def extend_beam(beam, k, G, is_gold):
-  ext = priority_queue()
-  for score, state in beam[:k]:
-    for w, action in get_scores(state):
-      cost = dyn_oracle(action, state, G)
-      if cost == 0 or not is_gold:
-        ext.push((score+w, action(state)))
-  return ext
+  predicted = [(0, State(S))]
+  gold = [(0, State(S))]
+  violns = []
+  while not finished(predicted[1]) and \
+        not finished(gold[1]):
+    ext = []
+    for fom, state in predicted:
+      feats = get_features(state)
+      for t in T:
+        next_s = transition(state, t)
+        score = dot_product(feats, W[t])
+        ext.append((fom+score, next_s))
+    ext.sort(reverse=True)
+    predicted = ext[:k]
+    # Now search for gold sequence
+    ext = []
+    for fom, state in gold:
+      feats = get_features(state)
+      for t in T:
+        next_s = transition(state, t)
+        if is_gold(next_s, G):
+          score = dot_product(feats, W[t])
+          ext.append((fom+score, next_s))
+    ext.sort(reverse=True)
+    gold = ext[:k]
+    p_score, best_p = predicted[0]
+    if not is_gold(best_p, G):
+      g_score, best_g = gold[0]
+      v = p_score - g_score
+      violns.append((v, best_p, best_g))
+  return max(violns)
 \end{verbatim}
-\caption{\small The maximum-violation update structured perceptron training
-    algorithm \citep{huang:12}, updated to use the \citet{goldberg:12} dynamic
-    oracle.  The best predicted and gold-standard candidates are found using
-    beam-search, and weight updates are performed over the states where the
-    best gold candidate receives its lowest score, compared to the best predicted
-    candidate. For simplicity, the path-length normalisation adjustment is not
-    shown.\label{fig:train_code}}
+\caption{\small The algorithm by which transition sequences are selected for
+    weight updates. We use the maximum violation update strategy \citep{huang:12},
+    modified for partially labelled training data (i.e. there are many possible
+    gold sequences).
+    Once a pair of sequences has been found, the structured
+    perceptron weight update proceeds as normal, following Collins (2002). 
+    \label{fig:train_code}}
 \end{figure}
+Our training algorithm deviates from previous work in the way a pair of sequences
+is selected for the update.  This step is shown in Figure \ref{fig:train_code}.
+The algorithm receives a sentence \verb|S| and its
+gold-standard analysis $G$, along with the current weights, the list of transitions,
+and the beam-width.
+The algorithm is adapted from the maximum-violation update strategy of \citet{huang:12}.
+A \emph{violation} is a state at which the model's prediction is incorrect: the
+candidate with the highest figure-of-merit is not a gold-standard sequence.  The
+\emph{maximum violation} is the point at which the divergence between the highest
+figure-of-merit assigned to a gold-standard candidate, and the overall highest
+figure of merit, is largest.
 
-The training algorithm is shown in Figure \ref{fig:train_code}.
-For each sentence \verb|S| and its gold-standard analysis \verb|G|,
-we maintain two priority queues of
-$\langle \mathrm{score}, \mathrm{state} \rangle$ tuples: a prediction
-beam \verb|pred| and a gold-standard beam \verb|gold|.
-The first beam is used to search for the state sequence with the highest model
-score, and the second searches for the sequence with the highest score subject
-to the constraint that it be zero-cost, i.e. gold-standard.  In other words, only
-actions which can result in the gold-standard analysis are considered (this
-check is performed using the dynamic oracle).
+%The maximum violation update strategy is an improvement on the early update
+%strategy of \citet{collins:02}.  Its advantage is mostly in efficiency:
+%the two update strategies result in similar accuracy, but maximum violation
+%requires fewer training iterations, because its updates are over longer sequences.
+%\citet{huang:12} apply the maximum-violation update to dependendency parsing
+%with a static oracle, which produces a single gold-standard transition history.
+%We extend the algorithm for use with a dynamic oracle, by finding
+%the best gold-standard sequence, via beam-search decoding.
 
-As parsing proceeds, we search for the \emph{maximum violation}
-\citep{huang:12}: the state where the divergence in score between the top elements
-of the beams is largest.
-Once parsing terminates, we perform the usual structured perceptron update, with
-the sequences leading up to the two maximum violation states.
-
-The maximum violation update strategy is an improvement on the early update
-strategy of \citet{collins:02}.  Its advantage is mostly in efficiency:
-the two update strategies result in similar accuracy, but \emph{maximum violation}
-requires fewer training iterations, because its updates are over longer sequences.
 
 
 \subsection{Path length normalisation}
@@ -698,8 +712,8 @@ and processed again.  This has little to no impact on the algorithm's empirical
 efficiency, although worst-case complexity is no longer linear, but it does
 pose a problem for decoding.
 
-The perceptron model tends to assign large positive scores to its top prediction.
-\footnote{Recall that each training instance
+The perceptron model tends to assign large positive scores to its top
+prediction.\footnote{Recall that each training instance
 involves adding 1.0 to the weights for the highest-scoring correct class,
 and -1.0 to the weights for the predicted class, over several iterations. There
 are many more possible wrong answers than there are right answers, so the negative
@@ -748,8 +762,9 @@ had no effect on accuracy. Numeric features (for distance and valency) are binne
 with the function $\lambda x: \max(x, 5)$.
 There is only one bi-lexical feature template, which pairs
 the words of \szero and \nzero.
-There are also ten tri-tag templates, for the
-\pos tag of \szero, \nzero, and various other context tokens.
+There are also ten tri-tag templates.
+%for the
+%\pos tag of \szero, \nzero, and various other context tokens.
 
 Our feature set includes additional dependency label features not used by \citet{zhang:11},
 as we found that disfluency detection errors often resulted in ungrammatical
@@ -772,12 +787,13 @@ features bring a small but statistically significant improvement on the \textsc{
 task (0.1-0.3\% \textsc{uas}).  Other developers of transition-based parsers
 seem to have found similar results (personal communication).
 Since a Brown cluster mapping computed by \citet{liang:05} is easily
-available\footnote{\url{www.metaoptimize.com/projects/wordreps}}, the features
-are very simple to implement and cheap to compute.
+available,\footnote{\tiny \url{http://www.metaoptimize.com/projects/wordreps}} the features
+are simple to implement and cheap to compute.
 %so we see little reason not to include them in the parser.
 
-Our templates follow \citet{koo:10} in including features for full clusters as
-well as cluster prefixes. We adapt their templates to transition-based parsing
+Our templates follow \citet{koo:10} in including features that refer to cluster
+prefix strings, as well as the full clusters.
+We adapt their templates to transition-based parsing
 by replacing `head' with `item on top of the stack' and `child' with `first word
 of the buffer'. The exact templates can be found in the supplementary material.
 
@@ -860,11 +876,17 @@ in grammatical sentences (e.g. `that that'), while most rare words cannot.
 \subsection{Edited neighbour features}
 
 Disfluencies are usually
-string contiguous, even if they do not form a single constituent.  
-We enable the parser to exploit this by adding features that fire when the word
-or pair of words immediately preceding N0 are already marked disfluent by the parser.
-A similar pair of features is
-added for the word or pair of words immediately after \szero.
+string contiguous, even if they do not form a single constituent.
+In these situations, our model has to make multiple transitions to mark a single
+disfluency. For instance, if an utterance begins \emph{and the and a}, the stack
+will contain two entries, for \emph{and} and \emph{the}, and two Edit transitions
+will be required.
+
+To mitigate this disadvantage of our model, we add four binary features. Two fire
+when the word or pair of words immediately preceding N0 have been marked disfluent;
+the other two fire when the word or pair of words immediately following S0
+have been marked disfluent. These features provide an additional string-based
+view that the parser would otherwise be missing.
 
 
 \section{Part-of-speech tagging}
@@ -908,8 +930,8 @@ of which is used for final evaluation.
 Our parser evaluation uses the \sparseval \citep{sparseval} metric.
 However, we wanted to use the Stanford dependency converter, for the 
 reasons described in Section \ref{sec:deps}, so we
-used our own implementation.  Our evaluation script is distributed
-in the supplementary materials.  Because we do not need to deal with recognition
+used our own implementation.
+Because we do not need to deal with recognition
 errors, we do not need to report our parsing results using $P$/$R$/$F$-measures.
 Instead, we report an unlabelled accuracy score, which refers to the percentage
 of fluent words whose governors were assigned correctly.  Note that words marked
@@ -933,8 +955,8 @@ We test for statistical significance in our results by training 20 models for
 each experimental configuration, using different random seeds. The random seeds
 control how the sentences are shuffled during training, which the perceptron
 model is quite sensitive to.  We use the Wilcoxon rank-sums non-parametric test.
-The standard deviation in \textsc{uas} for a sample was typically around 0.05,
-and 0.5 for disfluency $F$-measure.
+The standard deviation in \textsc{uas} for a sample was typically around 0.05\%,
+and 0.5\% for disfluency $F$-measure.
 
 All of our models use beam-search decoding, with a beam width of 32. We found that
 a beam width of 64 brought a very small accuracy improvement (about 0.1\%), at
@@ -942,13 +964,20 @@ the cost of 50\% slower run-time. Wider beams than this brought no accuracy impr
 Accuracy seems to plateau with slightly narrower beams than on newswire text.
 This is probably due to the shorter sentences in Switchboard.
 
-The baseline \textbf{Beam parser} system refers to a standard arc-eager
+The baseline and pipeline systems are configured in the same way, except that
+the baseline parser is modified slightly to allow it to predict disfluencies,
+using a special dependency label.
+The baseline system is a standard arc-eager
 transition-based parser with a structured averaged perceptron model and beam-search
-decoding.  It uses the feature set of \citet{zhang:11}, plus our additional
+decoding.  The model is trained following \citet{zhang:cl11}, i.e. we use a
+`static' oracle, rather than the dynamic oracle training strategy used for our
+Edit transition. The maximum-violation update \citep{huang:12} is used to reduce
+the number of training iterations required.
+The baseline parser uses the feature set of \citet{zhang:11}, plus our additional
 dependency label features and the Brown cluster features described in Section
 \ref{sec:browns}.  The baseline parser marks tokens as disfluent by attaching
 them to the rest of the parse tree with a special dependency label, \textsc{erased}.
-All descendants of a word attached to its governor with this label are marked as
+All descendants of a word attached to its head by this label are marked as
 disfluent.
 
 
@@ -967,15 +996,14 @@ that make it easy to put our joint model's parsing accuracy into context.
 We therefore compare our joint model to two pipeline systems, which consist of 
 a disfluency detector, followed by our dependency parser.
 We also evaluate parse accuracies after oracle pre-processing, to
-guage the net effect of disfluencies on our parser's accuracy.
+gauge the net effect of disfluencies on our parser's accuracy.
 
 The dependency parser for the pipeline systems was trained on text with all disfluencies
 removed, following \citet{Charniak01a}. 
 The two disfluency detection systems we used were the \citet{qian:13} sequence-tagging
 model, and a version of the \citet{Johnson04a} noisy channel model, using the
 \citet{Charniak01b} syntactic language model and the reranking features of
-\citet{zwarts:11}. The two systems operate very differently, and are the two best
-published disfluency detection systems.
+\citet{zwarts:11}. They are the two best published disfluency detection systems.
 
 
 %One concern we had with this architecture was that the model is trained on text
@@ -1074,7 +1102,7 @@ would help the system produce more syntactically consistent output.
 Our joint model achieved an unlabelled attachment score of 90.5\%, out-performing
 both pipeline systems.  The \textbf{Baseline joint parser}, which did not include
 the Edit transition or disfluency features, scores 1.1\% below the
-\textbf{Final joint parse}.  All of the parse accuracy differences were found to
+\textbf{Final joint parser}.  All of the parse accuracy differences were found to
 be statistically significant ($p<0.001$).
 
 The Edit transition and disfluency features brought a 10.1\% improvement
@@ -1084,7 +1112,7 @@ the previous state-of-the-art, the \citet{qian:13} system,\footnote{
 Our scores refer to an updated version of the system
 that corrects minor pre-processing problems. We thank Qian Xian for making
 his code available.} despite having approximately 50\%
-as much training data (as we require syntactic annotation, for which there is
+as much training data (we require syntactic annotation, for which there is
 less data).
 
 Our significance testing regime involved using 20 different random seeds when
@@ -1104,18 +1132,20 @@ which dropped in accuracy by 0.5\%.
 In order to understand how the parser applies the Edit transition, we
 collected some additional statistics over the development data.
 The parser predicted 2,558 Edit transitions,
-which together marked 2706
+which together marked 2,706
 words disfluent (2,495 correctly).  The Edit transition can mark multiple words
 disfluent when S0 has one or more rightward descendants. It turns out this case
-is uncommon.
-The parser largely assigns disfluency labels
+is uncommon;
+the parser largely assigns disfluency labels
 word-by-word, only sometimes marking words with rightward descendents as disfluent.
 
 Of the 2,558 Edit transitions, there were 682 cases were at least one leftward
-child was returned, and the total number of leftward children returned was 1,132.
-The most common type of construction were disfluent predicates, where the leftward
-children were subjects and discourse conjunctions.  An example of a disfluent
-predicate with a fluent subject is shown in Figure \ref{fig:bankrupt}.
+child was returned to the stack, and the total number of leftward children returned
+was 1,132. The most common type of construction that caused the parser to return
+words to the stack
+were disfluent predicates, which ofte have subjects and discourse conjunctions as leftward
+children. An example of a disfluent predicate with a fluent subject is shown
+in Figure \ref{fig:bankrupt}.
 
 There were only 48 cases of the same word being returned to the stack twice. The
 possibility of words being returned to the stack multiple times is what gives our
@@ -1149,12 +1179,14 @@ buffer forward. Instead of the dynamic oracle training method that we employ,
 they use a two-stage bootstrap-style process.
 
 Direct comparison between our model and theirs is difficult,
-as they use the Penn2MALT scheme, and their parser is greedy, where we use
+as they use the Penn2MALT scheme, and their parser uses greedy decoding, where we use
 beam search. They also use gold-standard part-of-speech tags, which would
 improve our scores by around 1\%.
-The use of beam search may explain much of our performance advantage:
+The use of beam-search may explain much of our performance advantage:
 they report an unlabelled attachment score of 88.6, and a disfluency detection
-$F$-measure of 81.4\%.
+$F$-measure of 81.4\%.  Our training algorithm would be applicable to a
+beam-search version of their parser, as their transition-system also introduces
+substantial spurious ambiguity, and some non-monotonic behaviour.
 
 The most prominent joint model of constituency parsing and disfluency detection
 that we are aware of is from \citet{hale:06}, who investigated the effect of
