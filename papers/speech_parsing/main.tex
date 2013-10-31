@@ -673,10 +673,11 @@ def find_update(S, G, W, T, k):
 \end{verbatim}
 \caption{\small The algorithm by which transition sequences are selected for
     weight updates. We use the maximum violation update strategy \citep{huang:12},
-    modified for partially labelled training data (i.e. there are many possible
-    gold sequences).
-    Once a pair of sequences has been found, the structured
-    perceptron weight update proceeds as normal, following Collins (2002). 
+    modified for use with a dynamic oracle \citep{goldberg:12}.
+    %partially labelled training data (i.e. there are many possible
+    %gold sequences).
+    %Once a pair of sequences has been found, the structured
+    %perceptron weight update proceeds as normal, following Collins (2002). 
     \label{fig:train_code}}
 \end{figure}
 Our training algorithm deviates from previous work in the way a pair of sequences
@@ -713,12 +714,13 @@ efficiency, although worst-case complexity is no longer linear, but it does
 pose a problem for decoding.
 
 The perceptron model tends to assign large positive scores to its top
-prediction.\footnote{Recall that each training instance
-involves adding 1.0 to the weights for the highest-scoring correct class,
-and -1.0 to the weights for the predicted class, over several iterations. There
-are many more possible wrong answers than there are right answers, so the negative
-weight tends to be split across more classes. This is why the top prediction on
-an instance almost always has a high positive weight.}
+prediction.
+%\footnote{Recall that each training instance
+%involves adding 1.0 to the weights for the highest-scoring correct class,
+%and -1.0 to the weights for the predicted class, over several iterations. There
+%are many more possible wrong answers than there are right answers, so the negative
+%weight tends to be split across more classes. This is why the top prediction on
+%an instance almost always has a high positive weight.}
 We thus observed a problem when comparing paths of different lengths, at the end
 of the sentence. Paths that included Edit transitions were longer,
 so the sum of their scores tended to be higher.
@@ -966,20 +968,16 @@ This is probably due to the shorter sentences in Switchboard.
 
 The baseline and pipeline systems are configured in the same way, except that
 the baseline parser is modified slightly to allow it to predict disfluencies,
-using a special dependency label.
+using a special dependency label, \textsc{erased}.  All descendants of a word 
+attached to its head by this label are marked as disfluent.
+
 The baseline system is a standard arc-eager
 transition-based parser with a structured averaged perceptron model and beam-search
-decoding.  The model is trained following \citet{zhang:cl11}, i.e. we use a
-`static' oracle, rather than the dynamic oracle training strategy used for our
-Edit transition. The maximum-violation update \citep{huang:12} is used to reduce
-the number of training iterations required.
-The baseline parser uses the feature set of \citet{zhang:11}, plus our additional
-dependency label features and the Brown cluster features described in Section
-\ref{sec:browns}.  The baseline parser marks tokens as disfluent by attaching
-them to the rest of the parse tree with a special dependency label, \textsc{erased}.
-All descendants of a word attached to its head by this label are marked as
-disfluent.
-
+decoding.  The model is trained in the standard way, with a `static' oracle and
+maximum-violation update, following \citep{huang:12}.
+%i.e. we use a
+%`static' oracle, rather than the dynamic oracle training strategy used for our
+%Edit transition
 
 %\label{sec:oracle}
 %This experiment investigates how much disfluencies disrupt parsing accuracy,
