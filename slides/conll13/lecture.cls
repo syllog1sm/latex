@@ -39,7 +39,7 @@
     \setbeamertemplate{note page}[plain]
   }{\relax}
 }
-
+\setbeamertemplate{footline}{\hfill \large{\insertframenumber/\inserttotalframenumber}}
 \usetheme{default}
 
 \author{Matthew Honnibal}
