@@ -793,7 +793,7 @@ and \nzero, and the left and right valencies
 dependency labels. We restrict these
 to the first and last 2 children for implementation efficiency, as we found this
 had no effect on accuracy. Numeric features (for distance and valency) are binned
-with the function $\lambda x: \max(x, 5)$.
+with the function $\lambda x: \min(x, 5)$.
 There is only one bi-lexical feature template, which pairs
 the words of \szero and \nzero.
 There are also ten tri-tag templates.
@@ -885,7 +885,7 @@ We calculate a simple kind of rough-copy feature using the \szeroLedge and
           exactly?
 \end{itemize}
 
-The prefix-length features are binned using the function $\lambda x: \max(x, 5)$.
+The prefix-length features are binned using the function $\lambda x: \min(x, 5)$.
 
 \subsection{Match features}
 
