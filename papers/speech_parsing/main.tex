@@ -1006,6 +1006,8 @@ The baseline and pipeline systems are configured in the same way, except that
 the baseline parser is modified slightly to allow it to predict disfluencies,
 using a special dependency label, \textsc{erased}.  All descendants of a word 
 attached to its head by this label are marked as disfluent.
+Both the baseline and pipeline/oracle parsers use the same feature set:
+the \citet{zhang:11} features, plus our Brown cluster features.
 
 The baseline system is a standard arc-eager
 transition-based parser with a structured averaged perceptron model and beam-search
@@ -1069,7 +1071,8 @@ labelled attachment score (\textsc{uas}).
 
 The \textbf{Oracle pipeline} system, which uses the gold-standard to clean disfluencies
 prior to parsing, shows the total impact of speech-errors on the parser.  The
-baseline parser, which uses the same features, scores 1.7\% lower.
+baseline parser, which uses the same features (\citet{zhang:11}, plus our Brown
+cluster features(, scores 1.7\% lower. 
 
 When we add the features described in Section \ref{sec:features}, the gap is reduced
 to 1.3\% (\textbf{+Features}).  Finally, the improved transition system reduces
@@ -1092,6 +1095,7 @@ Oracle pipeline  & 100 & 100 & 100 & 91.7    & 88.6 \\
 \hline
     \end{tabular}
     \caption{\small Development results for the joint models.  For the baseline model,
+        which uses the Zhang and Nivre (2013) feature set,
         disfluencies reduce
         parse accuracy by 1.7\% Unlabelled Attachment Score (\textsc{uas}). 
         Our features and Edit transition reduce the gap to
