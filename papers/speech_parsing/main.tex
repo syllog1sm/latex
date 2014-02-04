@@ -920,7 +920,11 @@ To mitigate this disadvantage of our model, we add four binary features. Two fir
 when the word or pair of words immediately preceding N0 have been marked disfluent;
 the other two fire when the word or pair of words immediately following S0
 have been marked disfluent. These features provide an additional string-based
-view that the parser would otherwise be missing.
+view that the parser would otherwise be missing.  Speakers tend be disfluent
+in bursts: if the previous word is disfluent, the next word is more likely
+to be disfluent.  These four features are therefore all associated with
+positive weights for the Edit transition.  Without these features, we would
+miss an aspect of disfluency processing that sequence models natural capture.
 
 
 \section{Part-of-speech tagging}
