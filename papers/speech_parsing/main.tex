@@ -170,6 +170,19 @@ under an open source license. The future prospects of the system are also quite 
 Because the parser is incremental, it should be well suited to
 unsegmented text such as the output of a speech-recognition system.
 
+We consider our main contributions to be:
+
+\begin{itemize}
+    \item State-of-the-art accuracy for speech parsing and disfluency detection;
+    \item The first direct comparison between joint and pipeline approaches to
+          parsing disfluent speech;
+    \item Substantially improved accuracy over the model of \citet{rasooli:13},
+          primarily through the use of beam-search;
+    \item A novel non-monotonic transition strategy for disfluency detection;
+    \item Several novel feature classes, which improve accuracy substantially;
+    \item An efficient, open-source implementation of the system.\footnote{\url{http://github.com/syllog1sm/redshift/}}
+\end{itemize}
+
 \section{Switchboard disfluency annotations}
 \label{sec:swbd}
 
