@@ -244,6 +244,9 @@ evaluate our joint syntactic parser.
 As is standard in statistical dependency parsing of English, we acquire our
 gold-standard dependencies from phrase-structure trees.
 We used the 2013-04-05 version of the Stanford dependency converter \citep{stanford_deps}.
+As is standard for English dependency parsing, we use the Basic Dependencies scheme,
+which is limited to projective representations.
+
 At first we feared that the filled pauses, disfluencies and meta-data tokens in
 the Switchboard corpus might disrupt the conversion process, by making it more
 difficult for the converter to recognise the underlying production rules.
