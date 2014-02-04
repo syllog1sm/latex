@@ -1206,6 +1206,12 @@ parser was also quite accurate in its decisions over these tokens.  Of the 547
 tokens marked disfluent, 500 were correct --- similar to the overall development set 
 precision, 92.2\%.
 
+Accuracy over the words returned to the stack might be improved in future by
+features referring to their former heads. For instance, in \emph{He went broke
+uh became bankrupt}, we do not currently have features that record the deleted
+dependency became \emph{he} and \emph{went}. We thank one of the anonymous reviewers
+for this suggestion.
+
 \section{Related Work}
 
 The most similar system to ours was published very recently.
