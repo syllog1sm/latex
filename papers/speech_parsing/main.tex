@@ -165,8 +165,8 @@ state-of-the-art disfluency detection systems as pre-processors to our
 parser, minus the custom disfluency features and transition.
 The joint model compared favourably to the pipeline parsers at both tasks, with
 an unlabelled attachment score of 90.5\%, and 84.0\% accuracy at detecting speech
-repairs. An efficient implementation is available at \verb|<anonymized>|
-under an open source license. The future prospects of the system are also quite promising.
+repairs.
+The future prospects of the system are also quite promising.
 Because the parser is incremental, it should be well suited to
 unsegmented text such as the output of a speech-recognition system.
 
@@ -183,6 +183,19 @@ We consider our main contributions to be:
     \item An efficient, open-source implementation of the system.\footnote{\url{http://github.com/syllog1sm/redshift/}}
 \end{itemize}
 
+\section{Disfluency detection task definition}
+
+Speech disfluencies are typically categorised into three classes:
+filled pauses, such as \emph{um} and \emph{uh};
+parentheticals, such as \emph{I mean} and \emph{you know};
+speech repairs and restarts.
+
+We follow the evaluation defined by \citet{Charniak01a}, which only considers
+accuracy on speech repairs and restarts.  This definition of the task is the 
+standard in recent work. The reason for this is that filled pauses can be
+detected using a simple rule-based approach, and parentheticals have less impact
+on readability and down-stream processing accuracy.
+
 \section{Switchboard disfluency annotations}
 \label{sec:swbd}
 
@@ -194,7 +207,10 @@ We consider our main contributions to be:
 \end{tabular}
 \caption{\small A sentence with disfluencies annotated in the style of Shriberg (1994) 
     and the Switchboard corpus.
-FP=Filled Pause, RM=Reparandum, IM=Interregnum, RP=Repair.\label{fig:shriberg}}
+FP=Filled Pause, RM=Reparandum, IM=Interregnum, RP=Repair.
+We follow previous work in evaluating the system on speech-repairs,
+marked \emph{reparandum} above.
+\label{fig:shriberg}}
 \end{figure}
 
 The Switchboard portion of the Penn Treebank \citep{marcus:93} consists of
