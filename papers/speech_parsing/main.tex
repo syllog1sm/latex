@@ -873,17 +873,21 @@ at S0 and N0, as disfluency processing takes place between these two tokens.
 We calculate a simple kind of rough-copy feature using the \szeroLedge and
 \nzeroLedge tokens:
 
-\begin{itemize}
+\begin{enumerate}
     \itemsep0em
     \item How long is the \emph{prefix word match} between \szeroLedge...\szero
-          and \nzeroLedge...\nzero?
+        and \nzeroLedge...\nzero? If the parser were analysing \emph{the red the blue square},
+        with \emph{red} on the stack and \emph{square} at \nzero, its value would be 1.
     \item How long is the \emph{prefix POS tag match} between \szeroLedge...\szero
-          and \nzeroLedge...\nzero?
+          and \nzeroLedge...\nzero? In the example above, its value would be 2,
+          given gold-standard POS tags.
     \item Do the words in \szeroLedge...\szero and \nzeroLedge...\nzero match
-          exactly?
+        exactly?  In the example above, its value would be \emph{false}.
     \item Do the POS tags in \szeroLedge...\szero and \nzeroLedge...\nzero match
-          exactly?
-\end{itemize}
+        exactly? If the parser were analysing \emph{the red square the blue rectangle},
+        with \emph{square} on the stack and \emph{rectangle} at \nzero, its
+        value would be \emph{true}.
+\end{enumerate}
 
 The prefix-length features are binned using the function $\lambda x: \min(x, 5)$.
 
