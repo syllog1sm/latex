@@ -262,7 +262,7 @@ trained on dependency trees that also included governors for disfluent words.
 
 We follow previous work on disfluency detection by lower-casing the text and
 removing punctuation and partial words (words tagged XX and words ending in
-`-').  We also remove out one-token sentences, as their syntactic
+`-').  We also remove one-token sentences, as their syntactic
 analyses are trivial.
 We found that two additional simple pre-processes improved our results: discarding
 all `um' and `uh' tokens; and merging `you know' and `i mean' into single tokens.
@@ -406,7 +406,8 @@ popped.
 Why revisit the leftward children, but not the right? We
 are concerned about dependencies which might be mirrored between the reparandum
 and the repair. The rightward subtree of the disfluency might well be incorrect,
-but if it is, it would still be incorrect if the word on top of the stack weren't
+but if it is, it would still be incorrect if the word on top of the stack were
+not
 disfluent --– so we regard these as parsing errors that we will train our model
 to avoid. In contrast, avoiding the Left-Arc transitions would require the parser to
 predict that the head is disfluent when it has not necessarily seen any evidence
@@ -1174,7 +1175,7 @@ Of the 2,558 Edit transitions, there were 682 cases were at least one leftward
 child was returned to the stack, and the total number of leftward children returned
 was 1,132. The most common type of construction that caused the parser to return
 words to the stack
-were disfluent predicates, which ofte have subjects and discourse conjunctions as leftward
+were disfluent predicates, which often have subjects and discourse conjunctions as leftward
 children. An example of a disfluent predicate with a fluent subject is shown
 in Figure \ref{fig:bankrupt}.
 
