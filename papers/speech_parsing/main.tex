@@ -407,8 +407,7 @@ Why revisit the leftward children, but not the right? We
 are concerned about dependencies which might be mirrored between the reparandum
 and the repair. The rightward subtree of the disfluency might well be incorrect,
 but if it is, it would still be incorrect if the word on top of the stack were
-not
-disfluent --– so we regard these as parsing errors that we will train our model
+actually fluent. We therefore regard these as parsing errors that we will train our model
 to avoid. In contrast, avoiding the Left-Arc transitions would require the parser to
 predict that the head is disfluent when it has not necessarily seen any evidence
 indicating that.
