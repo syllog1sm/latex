@@ -103,7 +103,7 @@ We present an incremental dependency parsing model that jointly performs
 disfluency detection.  The model handles speech repairs using a novel non-monotonic
 transition system, and includes several novel classes of features.  Together, these
 additions improve parse accuracy by 1\%.  The model runs in expected linear time,
-and processes over 700 sentences a second.
+and processes over 550 tokens a second.
 
 For comparison, we evaluated two pipeline systems, using state-of-the-art disfluency
 detectors.  The joint model performed better on both tasks,
@@ -1076,31 +1076,35 @@ labelled attachment score (\textsc{uas}).
 The \textbf{Oracle pipeline} system, which uses the gold-standard to clean disfluencies
 prior to parsing, shows the total impact of speech-errors on the parser.  The
 baseline parser, which uses the same features (\citet{zhang:11}, plus our Brown
-cluster features(, scores 1.7\% lower. 
+cluster features, scores 1.7\% lower. 
 
-When we add the features described in Section \ref{sec:features}, the gap is reduced
+When we add the features described in Sections 6.2, 6.3 and 6.4, the gap is reduced
 to 1.3\% (\textbf{+Features}).  Finally, the improved transition system reduces
 the gap further still, to 0.7\% (\textbf{+Edit transition}).  We also tested
 these features in the Oracle parser, but found they were ineffective on fluent
 text.
 
+The \textbf{w/s} column shows the tokens analysed per second for each system,
+including disfluencies, with a single thread on commodity hardware.  The additional
+features reduce efficiency, but the non-monotonic Edit transition does not.  The
+system is easily efficient enough for real-time use.
+
 
 \begin{table}
     \centering
     \small
-    \begin{tabular}{l|rrr|rr}
-        & P & R & F & \textsc{uas} & \textsc{las} \\
+    \begin{tabular}{l|rrr|rr|r}
+        & P & R & F & \textsc{uas} & \textsc{las} & w/s \\
         \hline \hline
-Baseline joint parser &	79.4	&	70.1	&	74.5	&	89.9	&	86.9 \\
-+Features &	86.0	&	77.2	&	81.3	&	90.5	&	87.5 \\ 
-+Edit transition &	92.2	&	80.2	&	85.8	&	90.9	&	87.9 \\ 
+        Baseline joint        &	79.4 &	70.1 &	74.5 &	89.9 &	86.9 & 711 \\
+        +Features             &	86.0 &	77.2 &	81.3 &	90.5 &	87.5 & 539 \\ 
+        +Edit transition      &	92.2 &	80.2 &	85.8 &	90.9 &	87.9 & 555 \\ 
 \hline       
-Oracle pipeline  & 100 & 100 & 100 & 91.7    & 88.6 \\
+Oracle pipeline  & 100 & 100 & 100 & 91.7    & 88.6 & 782 \\
 \hline
     \end{tabular}
-    \caption{\small Development results for the joint models.  For the baseline model,
-        which uses the Zhang and Nivre (2013) feature set,
-        disfluencies reduce
+    \caption{\small Development results for the joint models.
+        For the baseline model, disfluencies reduce
         parse accuracy by 1.7\% Unlabelled Attachment Score (\textsc{uas}). 
         Our features and Edit transition reduce the gap to
         0.7\%, and improve disfluency detection by 11.3\% $F$-measure.
@@ -1111,13 +1115,13 @@ Oracle pipeline  & 100 & 100 & 100 & 91.7    & 88.6 \\
 \begin{table}
     \small
     \centering
-    \begin{tabular}{l|r|r}
+    \begin{tabular}{l|r|r|r}
         & Disfl. F & \textsc{uas} \\
         \hline \hline
-Johnson et al pipeline      & 82.1 & 90.3 \\ 
-Qian and Liu  pipeline     & 83.9 & 90.1  \\
+        Johnson et al pipeline      & 82.1 & 90.3 \\ 
+        Qian and Liu  pipeline      & 83.9 & 90.1 \\
 \hline
-Baseline joint parser & 73.9 & 89.4 \\
+Baseline joint parser & 73.9 & 89.4 & \\
 Final joint parser    & 84.1 & \textbf{90.5} \\
 \hline
     \end{tabular}
