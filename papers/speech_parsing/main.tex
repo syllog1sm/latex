@@ -641,11 +641,12 @@ equally valid, and want to avoid stipulating one of them during training.
 We achieve this by following \citet{goldberg:12} in using a
 \emph{dynamic oracle} to create partially labelled training data.\footnote{
 The training data is partially labelled in the sense that instances can have multiple
-true labels.}
+true labels. Equivalently, one might say that the transitions are latent variables,
+which generate the dependencies.}
 A dynamic oracle is a function that determines the cost of applying an
 action to a state, in terms of gold-standard arcs that are newly unreachable.
-In contrast, most previous work on dependency parsing, including all work using
-beam-search decoding, assume a single gold-standard transition history.
+In contrast, most previous work on dependency parsing assume a single gold-standard
+transition history.
 
 We follow \citet{collins:02} in training an averaged perceptron model to predict
 transition \emph{sequences}, rather than individual transitions.  This type of model
@@ -656,72 +657,75 @@ Since the structured perceptron algorithm is now quite well known, we refer
 readers to the original presentation in \citet{collins:02}, or more recent work
 by \citet{huang:12}, for an explanation of how weights are updated during training.
 
+The dynamic oracle training procedure introduces latent variables, as there are
+often states where several trainsitions are zero-cost.  We therefore employ
+the latent-variable structured averaged perceptron model described by \citet{sun:09}.
 
 %\citet{goldberg:12} describe how a perceptron model with greedy decoding can be
 %trained using a dynamic oracle.  We adapt their algorithm for the structured
 %perceptron with beam-search decoding.
-
-\begin{figure}
-\small
-\begin{verbatim}
-def find_update(S, G, W, T, k):
-  # S is a sentence,
-  # G is the gold-standard,
-  # T is a list of transitions,
-  # W is a list of weight vectors
-  # k is the beam width
-  predicted = [(0, State(S))]
-  gold = [(0, State(S))]
-  violns = []
-  while not finished(predicted[1]) and \
-        not finished(gold[1]):
-    ext = []
-    for fom, state in predicted:
-      feats = get_features(state)
-      for t in T:
-        next_s = transition(state, t)
-        score = dot_product(feats, W[t])
-        ext.append((fom+score, next_s))
-    ext.sort(reverse=True)
-    predicted = ext[:k]
-    # Now search for gold sequence
-    ext = []
-    for fom, state in gold:
-      feats = get_features(state)
-      for t in T:
-        next_s = transition(state, t)
-        if is_gold(next_s, G):
-          score = dot_product(feats, W[t])
-          ext.append((fom+score, next_s))
-    ext.sort(reverse=True)
-    gold = ext[:k]
-    p_score, best_p = predicted[0]
-    if not is_gold(best_p, G):
-      g_score, best_g = gold[0]
-      v = p_score - g_score
-      violns.append((v, best_p, best_g))
-  return max(violns)
-\end{verbatim}
-\caption{\small The algorithm by which transition sequences are selected for
-    weight updates. We use the maximum violation update strategy \citep{huang:12},
-    modified for use with a dynamic oracle \citep{goldberg:12}.
-    %partially labelled training data (i.e. there are many possible
-    %gold sequences).
-    %Once a pair of sequences has been found, the structured
-    %perceptron weight update proceeds as normal, following Collins (2002). 
-    \label{fig:train_code}}
-\end{figure}
-Our training algorithm deviates from previous work in the way a pair of sequences
-is selected for the update.  This step is shown in Figure \ref{fig:train_code}.
-The algorithm receives a sentence \verb|S| and its
-gold-standard analysis $G$, along with the current weights, the list of transitions,
-and the beam-width.
-The algorithm is adapted from the maximum-violation update strategy of \citet{huang:12}.
-A \emph{violation} is a state at which the model's prediction is incorrect: the
-candidate with the highest figure-of-merit is not a gold-standard sequence.  The
-\emph{maximum violation} is the point at which the divergence between the highest
-figure-of-merit assigned to a gold-standard candidate, and the overall highest
-figure of merit, is largest.
+%
+%\begin{figure}
+%\small
+%\begin{verbatim}
+%def find_update(S, G, W, T, k):
+%  # S is a sentence,
+%  # G is the gold-standard,
+%  # T is a list of transitions,
+%  # W is a list of weight vectors
+%  # k is the beam width
+%  predicted = [(0, State(S))]
+%  gold = [(0, State(S))]
+%  violns = []
+%  while not finished(predicted[1]) and \
+%        not finished(gold[1]):
+%    ext = []
+%    for fom, state in predicted:
+%      feats = get_features(state)
+%      for t in T:
+%        next_s = transition(state, t)
+%        score = dot_product(feats, W[t])
+%        ext.append((fom+score, next_s))
+%    ext.sort(reverse=True)
+%    predicted = ext[:k]
+%    # Now search for gold sequence
+%    ext = []
+%    for fom, state in gold:
+%      feats = get_features(state)
+%      for t in T:
+%        next_s = transition(state, t)
+%        if is_gold(next_s, G):
+%          score = dot_product(feats, W[t])
+%          ext.append((fom+score, next_s))
+%    ext.sort(reverse=True)
+%    gold = ext[:k]
+%    p_score, best_p = predicted[0]
+%    if not is_gold(best_p, G):
+%      g_score, best_g = gold[0]
+%      v = p_score - g_score
+%      violns.append((v, best_p, best_g))
+%  return max(violns)
+%\end{verbatim}
+%\caption{\small The algorithm by which transition sequences are selected for
+%    weight updates. We use the maximum violation update strategy \citep{huang:12},
+%    modified for use with a dynamic oracle \citep{goldberg:12}.
+%    %partially labelled training data (i.e. there are many possible
+%    %gold sequences).
+%    %Once a pair of sequences has been found, the structured
+%    %perceptron weight update proceeds as normal, following Collins (2002). 
+%    \label{fig:train_code}}
+%\end{figure}
+%Our training algorithm deviates from previous work in the way a pair of sequences
+%is selected for the update.  This step is shown in Figure \ref{fig:train_code}.
+%The algorithm receives a sentence \verb|S| and its
+%gold-standard analysis $G$, along with the current weights, the list of transitions,
+%and the beam-width.
+%The algorithm is adapted from the maximum-violation update strategy of \citet{huang:12}.
+%A \emph{violation} is a state at which the model's prediction is incorrect: the
+%candidate with the highest figure-of-merit is not a gold-standard sequence.  The
+%\emph{maximum violation} is the point at which the divergence between the highest
+%figure-of-merit assigned to a gold-standard candidate, and the overall highest
+%figure of merit, is largest.
 
 
 \subsection{Path length normalisation}
@@ -1100,13 +1104,13 @@ Oracle pipeline  & 100 & 100 & 100 & 91.7    & 88.6 & 782 \\
 \begin{table}
     \small
     \centering
-    \begin{tabular}{l|r|r|r}
+    \begin{tabular}{l|r|r}
         & Disfl. F & \textsc{uas} \\
         \hline \hline
         Johnson et al pipeline      & 82.1 & 90.3 \\ 
         Qian and Liu  pipeline      & 83.9 & 90.1 \\
 \hline
-Baseline joint parser & 73.9 & 89.4 & \\
+Baseline joint parser & 73.9 & 89.4 \\
 Final joint parser    & 84.1 & \textbf{90.5} \\
 \hline
     \end{tabular}
