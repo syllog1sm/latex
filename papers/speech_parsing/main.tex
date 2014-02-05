@@ -173,28 +173,12 @@ unsegmented text such as the output of a speech-recognition system.
 We consider our main contributions to be:
 
 \begin{itemize}
-    \item State-of-the-art accuracy for speech parsing and disfluency detection;
-    \item The first direct comparison between joint and pipeline approaches to
-          parsing disfluent speech;
-    \item Substantially improved accuracy over the model of \citet{rasooli:13},
-          primarily through the use of beam-search;
-    \item A novel non-monotonic transition strategy for disfluency detection;
-    \item Several novel feature classes, which improve accuracy substantially;
-    \item An efficient, open-source implementation of the system.\footnote{\url{http://github.com/syllog1sm/redshift/}}
+    \itemsep0em
+    \item A novel non-monotonic transition system, for speech repairs and restarts;
+    \item Several novel feature classes;
+    \item Direct comparison against the two best disfluency pre-processors;
+    \item State-of-the-art accuracy for both speech parsing and disfluency detection.
 \end{itemize}
-
-\section{Disfluency detection task definition}
-
-Speech disfluencies are typically categorised into three classes:
-filled pauses, such as \emph{um} and \emph{uh};
-parentheticals, such as \emph{I mean} and \emph{you know};
-speech repairs and restarts.
-
-We follow the evaluation defined by \citet{Charniak01a}, which only considers
-accuracy on speech repairs and restarts.  This definition of the task is the 
-standard in recent work. The reason for this is that filled pauses can be
-detected using a simple rule-based approach, and parentheticals have less impact
-on readability and down-stream processing accuracy.
 
 \section{Switchboard disfluency annotations}
 \label{sec:swbd}
@@ -211,32 +195,47 @@ FP=Filled Pause, RM=Reparandum, IM=Interregnum, RP=Repair.
 We follow previous work in evaluating the system on speech-repairs,
 marked \emph{reparandum} above.
 \label{fig:shriberg}}
+\vspace*{-1.5em}
 \end{figure}
 
 The Switchboard portion of the Penn Treebank \citep{marcus:93} consists of
 telephone conversations between strangers about
 an assigned topic.  Two annotation layers are provided: one for syntactic
 bracketing (\textsc{mrg} files),
-and one for disfluencies (\textsc{dps} files).  The disfluency layer marks
+and one for disfluencies (\textsc{dps} files). 
+The disfluency layer marks
 elements with little or no syntactic function, such as filled pauses and discourse
 markers, and annotates speech repairs using the \citet{shriberg:94} system of
 reparandum/interregnum/repair. An example is shown in Figure \ref{fig:shriberg}.
 
+
 In the syntactic annotation, edited words are covered by a special node labelled
 \textsc{edited}.
-The idea behind this annotation is to mark text which, if
-excised, will lead to a grammatical sentence.  The \textsc{mrg} files do not
-mark other types of disfluencies, such as filled pauses (e.g. \emph{um}, \emph{uh}),
-parentheticals (e.g. \emph{you know}) or explicit editing terms (e.g. \emph{i mean}).
-We follow most previous work in restricting our attention to speech repairs.
+The idea is to mark text which, if
+excised, would result to a grammatical sentence.
+The \textsc{mrg} files do not mark other types of disfluencies.
+
+We follow the evaluation defined by \citet{Charniak01a}, which only considers
+accuracy on speech repairs and restarts.  This definition of the task is the 
+standard in recent work. The reason for this is that filled pauses can be
+detected using a simple rule-based approach, and parentheticals have less impact
+on readability and down-stream processing accuracy.
 
 The \textsc{mrg} and \textsc{dps} layers have high but imperfect agreement over
 what tokens they mark as speech repairs: of the text annotated with both layers,
 33,720 tokens are marked as disfluent in at least one layer, 32,310 are only marked
 as disfluent by the \textsc{dps} files, and 32,742 are only marked as disfluent
 by the \textsc{mrg} layer.
-We use the \textsc{mrg} layer, as we need syntactic annotations to train and
-evaluate our joint syntactic parser.
+
+The Switchboard annotation project was not fully completed.
+Because disfluency annotation is cheaper to produce, many of the \textsc{dps}
+training files do not have matching \textsc{mrg} files.
+Only 619,236/1,482,845 of the tokens
+in the \textsc{dps} disfluency-detection training data have gold-standard syntactic
+parses.  We require the more expensive syntactic annotation,
+but find that our system out-performs the previous state-of-the-art \citep{qian:13},
+despite training on less than half the data.
+
 
 \subsection{Dependency conversion}
 
