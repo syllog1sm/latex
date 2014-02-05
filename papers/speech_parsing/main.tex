@@ -1240,24 +1240,31 @@ $F$-measure of 81.4\%.  Our training algorithm would be applicable to a
 beam-search version of their parser, as their transition-system also introduces
 substantial spurious ambiguity, and some non-monotonic behaviour.
 
-The most prominent joint model of constituency parsing and disfluency detection
-that we are aware of is from \citet{hale:06}, who investigated the effect of
-syntactic and prosodic cues on a baseline disfluency detection system.  Their
-work is most closely connected to psycholinguistics and corpus linguistics research
-on disfluencies, such as \citet{shriberg:98}. The systems \citeauthor{hale:06}
-implemented range in disfluency accuracy from
-18-41.7\% $F$-measure, using gold \textsc{pos} tags. They also provide results
-from the  \citet{Charniak01a} parser on edit detection, and improved its score
-from 57.6 to 70.0.
+A hybrid transition system would also be possible, as the two types of Edit
+transition are seemingly complementary. The \citeauthor{rasooli:13} system offers
+a token-based view of disfluencies, which is useful for examples such as,
+\emph{and the and the}, which would require two applications of our transition.
+On the other hand, our transition may have the advantage for single-token and
+more syntactically complicated examples, particularly for disfluent verbs.
 
-We follow disfluency detection task definition set out by 
-\citet{Charniak01b}, who describe the first `pipeline' architecture for parsing
-disfluent speech.  The successor
-demonstrated the importance of syntactic features for disfluency detection
-\citep{Johnson04a}.
+%The most prominent joint model of constituency parsing and disfluency detection
+%that we are aware of is from \citet{hale:06}, who investigated the effect of
+%syntactic and prosodic cues on a baseline disfluency detection system.  Their
+%work is most closely connected to psycholinguistics and corpus linguistics research
+%on disfluencies, such as \citet{shriberg:98}. The systems \citeauthor{hale:06}
+%implemented range in disfluency accuracy from
+%18-41.7\% $F$-measure, using gold \textsc{pos} tags. They also provide results
+%from the  \citet{Charniak01a} parser on edit detection, and improved its score
+%from 57.6 to 70.0.
 
+The importance of syntactic feature for disfluency detection was demonstrated
+by \citep{Johnson04a}.
 Despite this, most subsequent work has used sequence models, rather than syntactic
-parsers.  One reason for this is that most applications of these models will be
+parsers.  The other disfluency system that we compare our model to, developed
+by \citet{qian:13}, uses a cascade of Maximum Margin Markov Models to perform
+disfluency detection with minimal syntactic information.
+
+One motivation for sequential approaches is that most applications of these models will be
 over unsegmented text, as segmenting unpunctuated text
 is a difficult task that benefits from syntactic features \citep{zhang:13}.
 
@@ -1267,15 +1274,15 @@ on unsegmented text in subsequent work.  Due to its use of syntactic features,
 from the joint model, the system is substantially more accurate than the previous
 state-of-the-art in incremental disfluency detection, 77\% \citep{zwarts:10}.
 
-Our modified transition system is reminiscent
-of the transition system described by \citet{honnibal:13}, in that it is
-non-monotonic.  The non-monotonic behaviour allows the parser to build a graph of dependencies,
-even though the final parse is a projective tree. There are thus natural connections
-between our transition system and the \textsc{dag}-parsing system of \citet{sagae:08}.
-A related idea would be to model the `rough copy' dependencies described by 
-\citet{Johnson04a} with a non-projective transition system, either by allowing
-arcs between non-adjacent nodes \citep{cohen:11} or by doing online-reordering
-\citep{nivre:09}.
+%Our modified transition system is reminiscent
+%of the transition system described by \citet{honnibal:13}, in that it is
+%non-monotonic.  The non-monotonic behaviour allows the parser to build a graph of dependencies,
+%even though the final parse is a projective tree. There are thus natural connections
+%between our transition system and the \textsc{dag}-parsing system of \citet{sagae:08}.
+%A related idea would be to model the `rough copy' dependencies described by 
+%\citet{Johnson04a} with a non-projective transition system, either by allowing
+%arcs between non-adjacent nodes \citep{cohen:11} or by doing online-reordering
+%\citep{nivre:09}.
 
 
 \section{Conclusion}
