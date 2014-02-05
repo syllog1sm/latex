@@ -723,16 +723,6 @@ candidate with the highest figure-of-merit is not a gold-standard sequence.  The
 figure-of-merit assigned to a gold-standard candidate, and the overall highest
 figure of merit, is largest.
 
-%The maximum violation update strategy is an improvement on the early update
-%strategy of \citet{collins:02}.  Its advantage is mostly in efficiency:
-%the two update strategies result in similar accuracy, but maximum violation
-%requires fewer training iterations, because its updates are over longer sequences.
-%\citet{huang:12} apply the maximum-violation update to dependendency parsing
-%with a static oracle, which produces a single gold-standard transition history.
-%We extend the algorithm for use with a dynamic oracle, by finding
-%the best gold-standard sequence, via beam-search decoding.
-
-
 
 \subsection{Path length normalisation}
 
@@ -746,12 +736,6 @@ pose a problem for decoding.
 
 The perceptron model tends to assign large positive scores to its top
 prediction.
-%\footnote{Recall that each training instance
-%involves adding 1.0 to the weights for the highest-scoring correct class,
-%and -1.0 to the weights for the predicted class, over several iterations. There
-%are many more possible wrong answers than there are right answers, so the negative
-%weight tends to be split across more classes. This is why the top prediction on
-%an instance almost always has a high positive weight.}
 We thus observed a problem when comparing paths of different lengths, at the end
 of the sentence. Paths that included Edit transitions were longer,
 so the sum of their scores tended to be higher.
@@ -796,8 +780,6 @@ with the function $\lambda x: \min(x, 5)$.
 There is only one bi-lexical feature template, which pairs
 the words of \szero and \nzero.
 There are also ten tri-tag templates.
-%for the
-%\pos tag of \szero, \nzero, and various other context tokens.
 
 Our feature set includes additional dependency label features not used by \citet{zhang:11},
 as we found that disfluency detection errors often resulted in ungrammatical
