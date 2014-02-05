@@ -757,7 +757,7 @@ of the sentence. Paths that included Edit transitions were longer,
 so the sum of their scores tended to be higher.
 
 The same problem has been observed during incremental \textsc{pcfg} parsing,
-by \citet{zhang:13}.  They introduce an additional transition, \textsc{idle},
+by \citet{zhu:13}.  They introduce an additional transition, \textsc{idle},
 to ensure that paths are the same length. So long as one candidate in the beam
 is still being processed, all other candidates apply the \textsc{idle} transition.
 
@@ -768,7 +768,7 @@ new figure-of-merit is the arithmetic mean of the candidate's transition scores,
 where previously the figure-of-merit was the sum of the candidate's transition
 scores.
 
-Interestingly, \citet{zhang:13} report that they tried exactly this, and that it
+Interestingly, \citet{zhu:13} report that they tried exactly this, and that it
 was less effective than their solution. We found that the features
 associated with the \textsc{idle} transition were uninformative (the state is at
 termination, so the stack and buffer are empty), and had nothing to do with how
