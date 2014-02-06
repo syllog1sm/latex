@@ -171,7 +171,8 @@ state-of-the-art disfluency detection systems as pre-processors to our
 parser, minus the custom disfluency features and transition.
 The joint model compared favourably to the pipeline parsers at both tasks, with
 an unlabelled attachment score of 90.5\%, and 84.0\% accuracy at detecting speech
-repairs.
+repairs. An efficient implementation is available under an open-source
+license.\footnote{http://github.com/syllog1sm/redshift}
 The future prospects of the system are also quite promising.
 Because the parser is incremental, it should be well suited to
 unsegmented text such as the output of a speech-recognition system.
@@ -657,16 +658,17 @@ transition history.
 We follow \citet{collins:02} in training an averaged perceptron model to predict
 transition \emph{sequences}, rather than individual transitions.  This type of model
 is often referred to as a structured perceptron, or sometimes a global perceptron.
-The structured perceptron is much better for beam-search decoding than a local
-model, due to the label bias problem \citep{zhang:12}.
-Since the structured perceptron algorithm is now quite well known, we refer
-readers to the original presentation in \citet{collins:02}, or more recent work
-by \citet{huang:12}, for an explanation of how weights are updated during training.
+During training, if the model does not predict the correct sequence, an update
+is performed, based on the gold-standard sequence and part of the sequence returned.
+Only part of the sequence is selected, in order to account for search errors.
+We use the maximum violation strategy described by \citet{huang:12} to select
+the subsequence to update from.
 
-The dynamic oracle training procedure introduces latent variables, as there are
-often states where several trainsitions are zero-cost.  We therefore employ
-the latent-variable structured averaged perceptron model described by \citet{sun:09}.
-
+To accomodate the dynamic oracle, we use the latent-variable structured perceptron
+algorithm described by \citet{sun:09}.
+Beam-search is performed for the best gold-standard
+sequence, as well as the best prediction. We use the same beam-width for both
+search procedures.
 %\citet{goldberg:12} describe how a perceptron model with greedy decoding can be
 %trained using a dynamic oracle.  We adapt their algorithm for the structured
 %perceptron with beam-search decoding.
@@ -1253,7 +1255,7 @@ more syntactically complicated examples, particularly for disfluent verbs.
 %from the  \citet{Charniak01a} parser on edit detection, and improved its score
 %from 57.6 to 70.0.
 
-The importance of syntactic feature for disfluency detection was demonstrated
+The importance of syntactic features for disfluency detection was demonstrated
 by \citep{Johnson04a}.
 Despite this, most subsequent work has used sequence models, rather than syntactic
 parsers.  The other disfluency system that we compare our model to, developed
