@@ -653,22 +653,23 @@ true labels. Equivalently, one might say that the transitions are latent variabl
 which generate the dependencies.}
 A dynamic oracle is a function that determines the cost of applying an
 action to a state, in terms of gold-standard arcs that are newly unreachable.
-In contrast, most previous work on dependency parsing assume a single gold-standard
-transition history.
+%In contrast, most previous work on dependency parsing assume a single gold-standard
+%transition history.
 
 We follow \citet{collins:02} in training an averaged perceptron model to predict
 transition \emph{sequences}, rather than individual transitions.  This type of model
 is often referred to as a structured perceptron, or sometimes a global perceptron.
 During training, if the model does not predict the correct sequence, an update
-is performed, based on the gold-standard sequence and part of the sequence returned.
-Only part of the sequence is selected, in order to account for search errors.
-We use the maximum violation strategy described by \citet{huang:12} to select
-the subsequence to update from.
+is performed, based on the gold-standard sequence and part of the sequence predicted
+by the current weights.
+Only part of the sequence is used to calculate the weight update, in order to
+account for search errors. We use the maximum violation strategy described by
+\citet{huang:12} to select the subsequence to update from.
 
-To accomodate the dynamic oracle, we use the latent-variable structured perceptron
-algorithm described by \citet{sun:09}.
-Beam-search is performed for the best gold-standard
-sequence, as well as the best prediction. We use the same beam-width for both
+To train our model using the dynamic oracle, we use the latent-variable structured
+perceptron algorithm described by \citet{sun:09}.
+Beam-search is performed to find the highest-scoring gold-standard
+sequence, as well as the highest-scoring prediction. We use the same beam-width for both
 search procedures.
 %\citet{goldberg:12} describe how a perceptron model with greedy decoding can be
 %trained using a dynamic oracle.  We adapt their algorithm for the structured
@@ -1073,7 +1074,7 @@ labelled attachment score (\textsc{uas}).
 
 The \textbf{Oracle pipeline} system, which uses the gold-standard to clean disfluencies
 prior to parsing, shows the total impact of speech-errors on the parser.  The
-baseline parser, which uses the same features (\citet{zhang:11}, plus our Brown
+baseline parser, which uses the \citet{zhang:11} feature set plus the Brown
 cluster features, scores 1.7\% lower. 
 
 When we add the features described in Sections 5.2, 5.3 and 5.4, the gap is reduced
@@ -1083,7 +1084,7 @@ these features in the Oracle parser, but found they were ineffective on fluent
 text.
 
 The \textbf{w/s} column shows the tokens analysed per second for each system,
-including disfluencies, with a single thread on commodity hardware.  The additional
+including disfluencies, with a single thread on a 2.4GHz Intel Xeon.  The additional
 features reduce efficiency, but the non-monotonic Edit transition does not.  The
 system is easily efficient enough for real-time use.
 
@@ -1240,10 +1241,10 @@ beam-search version of their parser, as their transition-system also introduces
 substantial spurious ambiguity, and some non-monotonic behaviour.
 
 A hybrid transition system would also be possible, as the two types of Edit
-transition are seemingly complementary. The \citeauthor{rasooli:13} system offers
+transition seem to be complementary. The \citeauthor{rasooli:13} system offers
 a token-based view of disfluencies, which is useful for examples such as,
 \emph{and the and the}, which would require two applications of our transition.
-On the other hand, our transition may have the advantage for single-token and
+On the other hand, our Edit transition may have the advantage for single-token and
 more syntactically complicated examples, particularly for disfluent verbs.
 
 %The most prominent joint model of constituency parsing and disfluency detection
