@@ -219,11 +219,12 @@ reparandum/interregnum/repair. An example is shown in Figure \ref{fig:shriberg}.
 In the syntactic annotation, edited words are covered by a special node labelled
 \textsc{edited}.
 The idea is to mark text which, if
-excised, would result to a grammatical sentence.
+excised, would result in a grammatical sentence.
 The \textsc{mrg} files do not mark other types of disfluencies.
 
-We follow the evaluation defined by \citet{Charniak01a}, which only considers
-accuracy on speech repairs and restarts.  This definition of the task is the 
+We follow the evaluation defined by \citet{Charniak01a}, which evaluates the
+the accuracy of identifying
+speech repairs and restarts.  This definition of the task is the 
 standard in recent work. The reason for this is that filled pauses can be
 detected using a simple rule-based approach, and parentheticals have less impact
 on readability and down-stream processing accuracy.
@@ -237,10 +238,10 @@ by the \textsc{mrg} layer.
 The Switchboard annotation project was not fully completed.
 Because disfluency annotation is cheaper to produce, many of the \textsc{dps}
 training files do not have matching \textsc{mrg} files.
-Only 619,236/1,482,845 of the tokens
+Only 619,236 of the 1,482,845 tokens
 in the \textsc{dps} disfluency-detection training data have gold-standard syntactic
-parses.  We require the more expensive syntactic annotation,
-but find that our system out-performs the previous state-of-the-art \citep{qian:13},
+parses.  Our system requires the more expensive syntactic annotation,
+but we find that it out-performs the previous state-of-the-art \citep{qian:13},
 despite training on less than half the data.
 
 
@@ -251,7 +252,7 @@ As is standard in statistical dependency parsing of English, we acquire our
 gold-standard dependencies from phrase-structure trees.
 We used the 2013-04-05 version of the Stanford dependency converter \citep{stanford_deps}.
 As is standard for English dependency parsing, we use the Basic Dependencies scheme,
-which is limited to projective representations.
+which produces strictly projective representations.
 
 At first we feared that the filled pauses, disfluencies and meta-data tokens in
 the Switchboard corpus might disrupt the conversion process, by making it more
