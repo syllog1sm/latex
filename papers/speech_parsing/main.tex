@@ -83,7 +83,7 @@
 
 \newcommand{\sparseval}{\textsc{sparseval}\xspace}
 
-\title{Joint incremental disfluency detection and dependency parsing}
+\title{Joint Incremental Disfluency Detection and Dependency Parsing}
 
 
 \author{Matthew Honnibal\\
@@ -187,7 +187,7 @@ We consider our main contributions to be:
     \item state-of-the-art accuracy for both speech parsing and disfluency detection.
 \end{itemize}
 
-\section{Switchboard disfluency annotations}
+\section{Switchboard Disfluency Annotations}
 \label{sec:swbd}
 
 \begin{figure}
@@ -245,7 +245,7 @@ but we find that it out-performs the previous state-of-the-art \citep{qian:13},
 despite training on less than half the data.
 
 
-\subsection{Dependency conversion}
+\subsection{Dependency Conversion}
 
 \label{sec:deps}
 As is standard in statistical dependency parsing of English, we acquire our
@@ -283,7 +283,7 @@ after parsing:
 all incoming and outgoing arcs will point to \emph{know} or \emph{mean}.
 The same pre-processing was performed for all our parsing systems.
 
-\section{Transition-based dependency parsing}
+\section{Transition-based Dependency Parsing}
 
 A transition-based parser predicts the syntactic structure of a sentence incrementally,
 by making a sequence of classification decisions.  We follow the architecture of
@@ -352,7 +352,7 @@ $D' = D \cup [i, j)$ \\
 
 
 
-\section{A non-monotonic Edit transition}
+\section{A Non-Monotonic Edit Transition}
 \label{sec:edittrans}
 
 One of the reasons disfluent sentences are hard to parse is that there often appear
@@ -419,7 +419,7 @@ to avoid. In contrast, avoiding the Left-Arc transitions would require the parse
 predict that the head is disfluent when it has not necessarily seen any evidence
 indicating that.
 
-\subsection{Worked example}
+\subsection{Worked Example}
 
 %The Edit transition is particularly useful for this
 %type of sentence, where the verb is disfluent but the subject is not.
@@ -618,7 +618,7 @@ words are struck-through.
 \end{figure}
 
 
-\subsection{Dynamic oracle training algorithm}
+\subsection{Dynamic Oracle Training Algorithm}
 \label{sec:dynoracle}
 
 
@@ -738,7 +738,7 @@ search procedures.
 %figure of merit, is largest.
 
 
-\subsection{Path length normalisation}
+\subsection{Path Length Normalisation}
 
 One problem introduced by the Edit transition is that the number of
 actions applied to a sentence is no longer constant --- it is no longer guaranteed
@@ -772,7 +772,7 @@ associated with the \textsc{idle} transition were uninformative (the state is at
 termination, so the stack and buffer are empty), and had nothing to do with how
 many edit transitions were earlier applied.
 
-\section{Features for the joint parser}
+\section{Features for the Joint Parser}
 \label{sec:features}
 
 Our baseline parser uses the feature set described by \citet{zhang:11}.
@@ -801,7 +801,7 @@ dependency label combinations.  The additional templates combine the \pos tag of
 two or three dependency labels from its left and right subtrees.  Details can be found in
 the supplementary material.
 
-\subsection{Brown cluster features}
+\subsection{Brown Cluster Features}
 \label{sec:browns}
 
 The Brown clustering algorithm \citep{brown:92} is a well known source
@@ -831,7 +831,7 @@ we use as part of our pipeline systems. They improved development set accuracy
 by 0.4\%.  We experimented with the other feature sets in these parsers, but found
 that they did not improve accuracy on fluent text.
 
-\subsection{Rough copy features}
+\subsection{Rough Copy Features}
 
 \citet{Johnson04a} point out that in speech repairs, the repair is often a `rough
 copy' of the reparandum.  The simplest case of this is where the repair is a single
@@ -890,7 +890,7 @@ features:
 
 \noindent The prefix-length features are binned using the function $\lambda x: \min(x, 5)$.
 
-\subsection{Match features}
+\subsection{Match Features}
 
 This class of features ask which pairs of the \emph{context tokens} match, in
 word or \pos tag.  The context tokens in the \citet{zhang:11} feature set
@@ -910,7 +910,7 @@ if the tags match, a feature is added indicating the tag. These finer grained
 versions help the model adjust for the fact that some words can be duplicated
 in grammatical sentences (e.g. `that that'), while most rare words cannot.
 
-\subsection{Edited neighbour features}
+\subsection{Edited Neighbour Features}
 
 Disfluencies are usually
 string contiguous, even if they do not form a single constituent.
@@ -930,7 +930,7 @@ positive weights for the Edit transition.  Without these features, we would
 miss an aspect of disfluency processing that sequence models natural capture.
 
 
-\section{Part-of-speech tagging}
+\section{Part-of-Speech Tagging}
 
 We adopt the standard strategy of using a \pos tagger as a pre-process
 before parsing.  Most transition-based
@@ -1027,7 +1027,7 @@ maximum-violation update, following \citep{huang:12}.
 %part of the yield of a node labelled \textsc{edited} in the \textsc{ptb} annotation.}
 %is removed, prior to training and evaluation.
 
-\subsection{Comparison with pipeline approaches}
+\subsection{Comparison with Pipeline Approaches}
 \label{sec:pipeline}
 The accuracy of incremental dependency parsers is well established on the Wall
 Street Journal, but there are no dependency parsing results in the literature
@@ -1173,7 +1173,7 @@ optimise on the development set, our test scores are lower than our development
 accuracies. Much of the over-fitting seems to be in the \textsc{pos} tagger,
 which dropped in accuracy by 0.5\%.
 
-\section{Analysis of Edit behaviour}
+\section{Analysis of Edit Behaviour}
 
 In order to understand how the parser applies the Edit transition, we
 collected some additional statistics over the development data.
