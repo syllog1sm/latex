@@ -107,13 +107,12 @@
 
 We present an incremental dependency parsing model that jointly performs
 disfluency detection.  The model handles speech repairs using a novel non-monotonic
-transition system, and includes several novel classes of features.  Together, these
-additions improve parse accuracy by 1\%.  The model runs in expected linear time,
-and processes over 550 tokens a second.
+transition system, and includes several novel classes of features.  For comparison,
+we evaluated two pipeline systems, using state-of-the-art disfluency detectors.
+The joint model performed better on both tasks, with a parse accuracy of 90.5\%
+and 84.0\% accuracy at disfluency detection.  The model runs in expected linear
+time, and processes over 550 tokens a second.
 
-For comparison, we evaluated two pipeline systems, using state-of-the-art disfluency
-detectors.  The joint model performed better on both tasks,
-with a parse accuracy of 90.5\% and 84.0\% accuracy at disfluency detection.
 
 \end{abstract}
 
@@ -147,7 +146,6 @@ both using entirely greedy parsing strategies, without a direct comparison
 against a pipeline architecture \citep{jorgensen:07,rasooli:13}.  We go substantially
 beyond these pilot studies, and present a system that compares favourably to a
 pipeline consisting of state-of-the-art components.
-
 Our parser largely follows the design of \citet{zhang:cl11}. We use a structured averaged
 perceptron model with beam-search decoding \citep{collins:02}. Our feature set
 is based on \citet{zhang:cl11}, and our transition-system is based on the arc-eager
@@ -160,9 +158,8 @@ is disfluent.  This is achieved by re-processing the leftward children of
 the word Edit marks as disfluent.  For instance, if the parser attaches \emph{the}
 to \emph{pepper}, but subsequently marks \emph{pepper} as disfluent, \emph{the} will
 be returned to the stack.
-
 We also exploit the ease with which the model can incorporate arbitrary
-features, and design a set of disfluency features that capture the
+features, and design a set of features that capture the
 `rough copy' structure of some speech repairs, which motivated the
 \citet{Johnson04a} noisy channel model.
 
@@ -182,7 +179,7 @@ We consider our main contributions to be:
 \begin{itemize}
     \itemsep0em
     \item a novel non-monotonic transition system, for speech repairs and restarts,
-    \item several novel feature classes;
+    \item several novel feature classes,
     \item direct comparison against the two best disfluency pre-processors, and
     \item state-of-the-art accuracy for both speech parsing and disfluency detection.
 \end{itemize}
@@ -221,9 +218,8 @@ In the syntactic annotation, edited words are covered by a special node labelled
 The idea is to mark text which, if
 excised, would result in a grammatical sentence.
 The \textsc{mrg} files do not mark other types of disfluencies.
-
 We follow the evaluation defined by \citet{Charniak01a}, which evaluates the
-the accuracy of identifying
+accuracy of identifying
 speech repairs and restarts.  This definition of the task is the 
 standard in recent work. The reason for this is that filled pauses can be
 detected using a simple rule-based approach, and parentheticals have less impact
@@ -927,7 +923,7 @@ view that the parser would otherwise be missing.  Speakers tend be disfluent
 in bursts: if the previous word is disfluent, the next word is more likely
 to be disfluent.  These four features are therefore all associated with
 positive weights for the Edit transition.  Without these features, we would
-miss an aspect of disfluency processing that sequence models natural capture.
+miss an aspect of disfluency processing that sequence models naturally capture.
 
 
 \section{Part-of-Speech Tagging}
@@ -1070,17 +1066,17 @@ Table \ref{tab:dev} shows the development set accuracies for our joint parser.
 Both the disfluency features and the 
 Edit transition make statistically significant improvements, in both
 disfluency $F$-measure, unlabelled attachment score (\textsc{uas}), and
-labelled attachment score (\textsc{uas}).
+labelled attachment score (\textsc{las}).
 
 The \textbf{Oracle pipeline} system, which uses the gold-standard to clean disfluencies
 prior to parsing, shows the total impact of speech-errors on the parser.  The
 baseline parser, which uses the \citet{zhang:11} feature set plus the Brown
-cluster features, scores 1.7\% lower. 
+cluster features, scores 1.8\% \textsc{uas} lower than the oracle. 
 
 When we add the features described in Sections 5.2, 5.3 and 5.4, the gap is reduced
-to 1.3\% (\textbf{+Features}).  Finally, the improved transition system reduces
-the gap further still, to 0.7\% (\textbf{+Edit transition}).  We also tested
-these features in the Oracle parser, but found they were ineffective on fluent
+to 1.2\% (\textbf{+Features}).  Finally, the improved transition system reduces
+the gap further still, to 0.8\% \textsc{uas} (\textbf{+Edit transition}).  We also
+tested these features in the Oracle parser, but found they were ineffective on fluent
 text.
 
 The \textbf{w/s} column shows the tokens analysed per second for each system,
@@ -1157,7 +1153,7 @@ The final joint parser achieved 0.2\% higher disfluency detection accuracy than
 the previous state-of-the-art, the \citet{qian:13} system,\footnote{
 Our scores refer to an updated version of the system
 that corrects minor pre-processing problems. We thank Qian Xian for making
-his code available.} despite having approximately 50\%
+his code available.} despite having approximately half
 as much training data (we require syntactic annotation, for which there is
 less data).
 
@@ -1244,7 +1240,7 @@ A hybrid transition system would also be possible, as the two types of Edit
 transition seem to be complementary. The \citeauthor{rasooli:13} system offers
 a token-based view of disfluencies, which is useful for examples such as,
 \emph{and the and the}, which would require two applications of our transition.
-On the other hand, our Edit transition may have the advantage for single-token and
+On the other hand, our Edit transition may have the advantage for
 more syntactically complicated examples, particularly for disfluent verbs.
 
 %The most prominent joint model of constituency parsing and disfluency detection
@@ -1258,7 +1254,7 @@ more syntactically complicated examples, particularly for disfluent verbs.
 %from 57.6 to 70.0.
 
 The importance of syntactic features for disfluency detection was demonstrated
-by \citep{Johnson04a}.
+by \citet{Johnson04a}.
 Despite this, most subsequent work has used sequence models, rather than syntactic
 parsers.  The other disfluency system that we compare our model to, developed
 by \citet{qian:13}, uses a cascade of Maximum Margin Markov Models to perform
@@ -1289,10 +1285,15 @@ state-of-the-art in incremental disfluency detection, 77\% \citep{zwarts:10}.
 
 We have presented an efficient and accurate joint model of dependency parsing and
 disfluency detection.  The model out-performs pipeline approaches using state-of-the-art
-disfluency detectors, and is highly efficient, processing over 700 tokens a second.
+disfluency detectors, and is highly efficient, processing over 550 tokens a second.
 Because the system is incremental, it should be straight-forward to apply it
 to unsegmented text. The success of an incremental, non-monotonic parser at
 disfluent speech parsing may also be of some psycholinguistic interest.
+
+\section*{Acknowledgments}
+The authors would like to thank the anonymous reviewers for their valuable comments.
+This research was supported under the Australian Research Council's Discovery Projects funding scheme (project numbers DP110102506 and DP110102593).
+
 
 \bibliography{main}
 \bibliographystyle{aclnat}
