@@ -1,0 +1,567 @@
+% vim: set textwidth=78 fo+=t :
+
+\documentclass[11pt,letterpaper]{article}
+\usepackage{acl2013}
+\usepackage{amsmath, amsthm}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{xspace}
+\usepackage{natbib}
+\usepackage{amsfonts}
+\usepackage{tikz-dependency}
+\usepackage{placeins}
+\usepackage{xcolor}
+\usepackage[noend]{algpseudocode}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{lcovington}
+\usepackage{cancel}
+% Alter some LaTeX defaults for better treatment of figures:
+    % See p.105 of "TeX Unbound" for suggested values.
+    % See pp. 199-200 of Lamport's "LaTeX" book for details.
+    %   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.9}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.8}	% max fraction of floats at bottom
+    %   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \setcounter{dbltopnumber}{2}    % for 2-column pages
+    \renewcommand{\dbltopfraction}{0.9}	% fit big float above 2-col. text
+    \renewcommand{\textfraction}{0.07}	% allow minimal text w. figs
+    %   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.7}	% require fuller float pages
+	% N.B.: floatpagefraction MUST be less than topfraction !!
+    \renewcommand{\dblfloatpagefraction}{0.7}	% require fuller float pages
+
+	% remember to use [htp] or [htpb] for placement
+
+
+\setlength\titlebox{6.5cm}    % Expanding the titlebox
+
+
+\renewcommand{\tabcolsep}{5pt}
+
+\newcommand{\baseacc}{00.00\xspace}
+\newcommand{\sysacc}{00.00\xspace}
+\newcommand{\sysimprove}{00.00\xspace}
+\newcommand{\las}{\textsc{las}\xspace}
+\newcommand{\uas}{\textsc{uas}\xspace}
+\newcommand{\pp}{\textsc{pp}\xspace}
+\newcommand{\pos}{\textsc{pos}\xspace}
+\newcommand{\wsj}{\textsc{wsj}\xspace}
+\newcommand{\edittrans}{\textsc{edit}\xspace}
+
+\newcommand{\stacktop}{S$_0$\xspace}
+\newcommand{\buffone}{N$_0$\xspace}
+
+\newcommand{\tuple}[1]{$\langle#1\rangle$}
+\newcommand{\maybe}[1]{\textcolor{gray}{#1}}
+\newcommand{\note}[1]{\textcolor{red}{#1}}
+\newcommand{\state}{\mathcal{S}}
+\newcommand{\nmae}{\textsc{nmae}\xspace}
+\newcommand{\pcfg}{\textsc{pcfg}\xspace}
+
+\newcommand{\szero}{S0\xspace}
+\newcommand{\nzero}{N0\xspace}
+
+\newcommand{\szeroH}{S0$_h$\xspace}
+\newcommand{\szeroHH}{S0$_{h2}$\xspace}
+\newcommand{\szeroL}{S0$_L$\xspace}
+\newcommand{\szeroLL}{S0$_{L2}$\xspace}
+\newcommand{\szeroR}{S0$_R$\xspace}
+\newcommand{\szeroRR}{S0$_{R2}$\xspace}
+\newcommand{\szeroLzero}{S0$_{L0}$\xspace}
+\newcommand{\szeroRzero}{S0$_{R0}$\xspace}
+
+\newcommand{\nzeroL}{N0$_L$\xspace}
+\newcommand{\nzeroLL}{N0$_{LL}$\xspace}
+\newcommand{\nzeroLzero}{N0$_{L0}$\xspace}
+
+\newcommand{\szeroRedge}{S0$_{re}$\xspace}
+\newcommand{\szeroLedge}{S0$_{le}$\xspace}
+\newcommand{\nzeroLedge}{N0$_{le}$\xspace}
+
+\newcommand{\sparseval}{\textsc{sparseval}\xspace}
+
+\title{Joint Incremental Segmentation, Disfluency Detection and Parsing}
+
+\author{
+	Anonymous\\
+  	Department\\
+  	Institution\\
+  	Address\\
+  {\tt \small email }\\
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+We present a joint transition-based model of segmentation, disfluency detection
+and dependency parsing.  We evaluate three ways of encoding the segmentation
+decisions into the transition system, and compare the best to a pipeline approach,
+where the input is segmented with a \textsc{crf} model before parsing.
+We find that the joint model compares favourably on all three tasks. It achieves
+TODO\% parse accuracy, TODO\% disfluency detection $F$-measure, and TODO\%
+segmentation accuracy --- improvements of TODO\%, TODO\% and TODO\% respectively.
+
+\end{abstract}
+
+% P1
+\section{Introduction}
+
+Previous speech understanding systems have required that the input be
+pre-segmented into sentence-like units. 
+For example, the following turn from one of the Switchboard conversational speech
+transcripts has three gold-standard segment annotations:
+
+\begin{lexample}
+\small
+uh and really we were really forced into keeping a budget because i 'm i 'm paid once a month which sort of sort of forces some uh uh restrictions / \\
+and you need to make sure all your bills are paid / \\
+uh about yourself
+\end{lexample}
+
+\noindent 
+The assumption has been that segmentation
+is necessary to make parsing tractable, as until recently the most accurate parsing
+systems were polynomial time.  Disfluencies such as filled-pauses and speech
+errors have also been addressed through pre-processes.
+The main strategy of previous work has been to adopt a pipeline
+architecture, where the input is progressively transformed to resemble well-edited
+written texts.
+
+However, recent work has shown that a pipeline architecture is inferior for detecting
+speech repairs.  \citet{rasooli:13} and Honnibal and Johnson (2014)
+describe two joint
+transition-based models that detect disfluencies at parse-time, instead of as a
+pre-process.  Honnibal and Johnson show that their model out-performs a state-of-the-art
+pipeline system.
+
+We show that segmentation can be addressed using a similar joint strategy, and that
+the resulting system is substantially more accurate than a pipeline approach.
+We tried three ways of encoding the segmentation decisions into the transition
+system.  We found that all three achieved similar accuracy, although there was
+a small advantage to allowing the parser flexibility, or `spurious ambiguity',
+in arriving at the correct segmentation.
+Our baseline system performs similarly to the system of Honnibal and Johnson (2014),
+which it is based on.  We employ a slightly different transition system, and
+extend disfluency detection to filled-pauses and other non-repair disfluencies.
+
+For comparison, we prepared a standard \textsc{crf}-based segmentation system,
+which achieved 96.5\% accuracy.  Features were based on the word and part-of-speech
+tag context.  No phonetic features were used in any of our experiments.
+
+We find that the joint model performs significantly better than the pipeline approach.
+When segmentation is performed as a pre-processes before parsing, unlabelled parse
+accuracy improves from 86.1\% to 87.6\%.  There were also statistically significant
+improvements in disfluency detection $F$-measure (77.0\% vs 76.5\%) and segmentation
+accuracy (96.?\% vs 96.?\%).
+
+\section{Spoken Language Understanding}
+
+\begin{figure}
+    \begin{tabular}{l}
+
+        A flight to $\underbrace{\mathrm{um}}_\text{FP} \underbrace{\mathrm{Boston}}_\text{RM} \underbrace{\mathrm{I\;mean}}_\text{IM} \underbrace{\mathrm{Denver}}_\text{RP}$ Tuesday\\
+
+\end{tabular}
+\caption{\small A sentence with disfluencies annotated in the style of Shriberg (1994) 
+    and the Switchboard corpus.
+FP=Filled Pause, RM=Reparandum, IM=Interregnum, RP=Repair.
+We follow previous work in evaluating the system on the accuracy with which
+it identifies speech-repairs, marked \emph{reparandum} above.
+\label{fig:shriberg}}
+\vspace*{-1.5em}
+\end{figure}
+
+The Switchboard portion of the Penn Treebank \citep{marcus:93} consists of
+telephone conversations between strangers about
+an assigned topic.  Two annotation layers are provided: one for syntactic
+bracketing (\textsc{mrg} files),
+and one for disfluencies (\textsc{dps} files). 
+The disfluency layer marks
+elements with little or no syntactic function, such as filled pauses and discourse
+markers, and annotates speech repairs using the \citet{shriberg:94} system of
+reparandum/interregnum/repair. An example is shown in Figure \ref{fig:shriberg}.
+
+
+In the syntactic annotation, edited words are covered by a special node labelled
+\textsc{edited}.
+The idea is to mark text which, if
+excised, would result in a grammatical sentence.
+The \textsc{mrg} files do not mark other types of disfluencies.
+We follow the evaluation defined by \citet{Charniak01a}, which evaluates the
+accuracy of identifying
+speech repairs and restarts.  This definition of the task is the 
+standard in recent work. The reason for this is that filled pauses can be
+detected using a simple rule-based approach, and parentheticals have less impact
+on readability and down-stream processing accuracy.
+
+The \textsc{mrg} and \textsc{dps} layers have high but imperfect agreement over
+what tokens they mark as speech repairs: of the text annotated with both layers,
+33,720 tokens are marked as disfluent in at least one layer, 32,310 are only marked
+as disfluent by the \textsc{dps} files, and 32,742 are only marked as disfluent
+by the \textsc{mrg} layer.
+
+The Switchboard annotation project was not fully completed.
+Because disfluency annotation is cheaper to produce, many of the \textsc{dps}
+training files do not have matching \textsc{mrg} files.
+Only 619,236 of the 1,482,845 tokens
+in the \textsc{dps} disfluency-detection training data have gold-standard syntactic
+parses.  Our system requires the more expensive syntactic annotation,
+but we find that it out-performs the previous state-of-the-art \citep{qian:13},
+despite training on less than half the data.
+
+
+
+\subsection{Disfluency Detection}
+
+\subsection{Utterance Segmentation}
+
+\subsection{The Switchboard Corpus}
+
+\section{Parsing Model}
+
+This section describes the parsing model of \citet{honnibal:14}, on which we
+base our parser. \citeauthor{honnibal:14} describe a joint disfluency detection
+and parsing system that requires the input be pre-segmented.  In Section \ref{sec:joint},
+we describe how we extend their model to also perform utterance segmentation.
+
+\begin{figure}
+    \centering
+    \small
+    \begin{tabular}{lr}
+        $(\sigma,i | \beta, A, D) \vdash (\sigma | i, \beta, A, D) $ \hfill & \hfill S \\
+        $(\sigma | i,j | \beta, A, D) \vdash ( \sigma, j | \beta, A \cup \{ j \rightarrow i \}, D ) $ \hfill & \hfill L \\
+        \multicolumn{2}{c}{Only if $i$ does not have an incoming arc.}\\
+        $(\sigma | i,j | \beta, A, D) \vdash ( \sigma | i | j, \beta, A \cup \{ i \rightarrow j \}, D ) $ \hfill & \hfill R \\
+        $(\sigma | i, \beta, A, D) \vdash ( \sigma, \beta, A, D )$ \hfill & \hfill  D \\
+        \multicolumn{2}{c}{Only if $i$ has an incoming arc.}\\
+    \hline
+    $(\sigma | i, j | \beta, A, D) \vdash (\sigma | [x_1, x_n], j | \beta,A',D')$ & E \\
+    Where \\
+    $A' = A \setminus \{x \rightarrow y\;\mathrm{or}\; y \rightarrow x : \forall x \in [i, j), \forall y \in \mathbb{N} \}$ \\
+    %Rsuch that $x = i$ or $y = i \}$ \\
+$D' = D \cup [i, j)$ \\
+    $x_1...x_n$ are the former left children of $i$ \\
+    \hline
+    & B \\
+    \end{tabular}
+    \caption{\small The Arc-Eager transition system.  The first four transitions
+        are the standard arc-eager system; the fifth is the anon. (2014) Edit
+        transition; the sixth is the Boundary transition introduced
+        in this work.\label{fig:ae_notation}}
+\end{figure}
+
+
+\begin{figure}
+    \centering
+    \small
+    \begin{tabular}{lr}
+        $(\sigma,i | \beta, A, D) \vdash (\sigma | i, \beta, A, D) $ \hfill & \hfill S \\
+        $(\sigma | i,j | \beta, A, D) \vdash ( \sigma, j | \beta, A \cup \{ j \rightarrow i \}, D ) $ \hfill & \hfill L \\
+        $(\sigma | i | j, \beta, A, D) \vdash ( \sigma | i , \beta, A \cup \{ i \rightarrow j \}, D ) $ \hfill & \hfill R \\
+    \hline
+    $(\sigma | i, j | \beta, A, D) \vdash (\sigma | [x_1, x_n], j | \beta,A',D')$ & E \\
+    Where \\
+    $A' = A \setminus \{x \rightarrow y\;\mathrm{or}\; y \rightarrow x : \forall x \in [i, j], \forall y \in \mathbb{N} \}$ \\
+    %Rsuch that $x = i$ or $y = i \}$ \\
+        $D' = D \cup [i, j]$ \\
+    $x_1...x_n$ are the former left children of $i$ \\
+    \hline
+    $(\sigma | i, j | \beta | n, A, D) \vdash (\sigma, j | \beta | n, A \cup \{n \rightarrow i\}, D)$ & B \\
+    \multicolumn{2}{c}{Only if not $A \cap \{j \rightarrow x : \forall x < j\}$} \\
+    Where $n$ is the root symbol \\
+    \end{tabular}
+    \caption{\small Our parser's transition system.  The first four transitions
+        are the standard arc-eager system; the fifth is the anon. (2014) Edit
+        transition; the sixth is the Boundary transition introduced
+        in this work.\label{fig:ae_notation}}
+\end{figure}
+%
+
+\section{Transition System}
+
+We depart from \citet{honnibal:14} in adopting the \emph{arc hybrid} transition
+system \citep{kuhlman:11}, in place of the more commonly used arc-eager system.
+The two systems are
+compared in Figure \ref{fig:trans_notation}.  The arc-hybrid system uses three
+actions:
+
+\begin{enumerate}
+    \item \textbf{Shift}: Push the first word from the buffer to the stack.
+    \item \textbf{Right}: Add an arc from the second word on the stack to the top
+                          word on the stack. Pop the stack.
+    \item \textbf{Left}: Add an arc from the first word of the buffer to the top
+                         word on the stack. Pop the stack.
+\end{enumerate}
+
+The arc-hybrid system is similar to the arc-eager system, in that words must
+accumulate their left sub-trees before they accumulate their right subtrees.
+However, Right-Arc decisions are delayed, as they are in the arc-standard system.
+
+We adopt the arc-hybrid system because it allows us to define a consistent
+\emph{dynamic oracle} across the three tasks we are interested in: parsing,
+disfluency detection,
+and utterance segmentation.  As we explain in Section \ref{sec:oracle}, the way
+that \citet{honnibal:14} define their Edit transition within the Arc-Eager system
+makes it difficult to design a consistent oracle for training, once utterance
+segmentation is also considered.
+
+We use the arc-eager transition system \citep{nivre:03,nivre:cl}, which consists
+of four parsing actions:  \textbf{S}hift, \textbf{L}eft-Arc,
+\textbf{R}ight-Arc and Re\textbf{d}uce.
+We denote the stack with its topmost element
+to the right, and the buffer with its first element to the left. A vertical bar
+is used to indicate concatenation to the stack or buffer, e.g. $\sigma | i$ indicates
+a stack with the topmost element $i$ and remaining elements $\sigma$.  
+A dependency from a governor $i$ to a child $j$ is denoted $i \rightarrow j$.
+The four arc-eager transitions are shown in Figure \ref{fig:ae_notation}.
+
+The Shift action moves the first item of the buffer onto the stack.
+The Right-Arc does the same, but also adds an arc, so that the top two items
+on the stack are connected. The Reduce move and the Left-Arc both pop the stack,
+but the Left-Arc first adds an arc from the first word of the buffer to the word
+on top of the stack. Constraints on the Reduce and Left-Arc
+moves ensure that every word is assigned exactly one head in the final configuration.
+We follow the suggestion of \citet{nivre:squib} and
+add a dummy token that governs root dependencies to the end of the sentence.
+Parsing terminates when this token is at the start of the buffer, and the stack is empty.
+Disfluencies are added to $D$ via the Edit transition, E, which we now define.
+
+\subsection{Edit Transition}
+\label{sec:edittrans}
+
+One of the reasons disfluent sentences are hard to parse is that there often appear
+to be syntactic relationships between words in the reparandum and the fluent sentence.
+When these relations are considered in addition to the dependencies between fluent words,
+the resulting structure is not necessarily a projective tree.
+
+Figure 3 shows a simple example, where the repair {\em square} replaces the
+reparandum {\em rectangle}.  An incremental parser could easily become
+`garden-pathed' and attach the repair {\em square} to the preceding words,
+constructing the dependencies shown dotted in Figure~3.  Rather than attempting
+to devise an incremental model that avoids constructing such dependencies, we
+allow the parser to construct these dependencies and later delete them if the governor
+or child are marked disfluent.
+
+\begin{figure}
+    \small
+\begin{dependency}[theme=simple, segmented edge]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    Pass \& me \& the \& red \& rectangle \& uh I mean \& square \\
+    \end{deptext}
+    \depedge[edge unit distance=0.9ex]{1}{2}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{3}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{5}{4}{}
+    \depedge[dotted, edge below, edge unit distance=0.8ex]{1}{5}{}
+    \depedge[edge unit distance=0.7ex]{7}{3}{}
+    \depedge[edge unit distance=0.7ex]{7}{4}{}
+    \depedge[edge unit distance=0.6ex]{1}{7}{}
+    \end{dependency}
+    \caption{\small Example where apparent dependencies between the reparandum and the
+    fluent sentence complicate parsing.  The dotted edges are difficult for an
+    incremental parser to avoid, but cannot be part of the final parse if it is to
+    be a projective tree. Our solution is to make the transition system non-monotonic:
+    the parser is able to delete edges.
+\label{fig:rectangle}}
+\end{figure}
+
+The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
+disfluent, along with its rightward descendents --- i.e., all words in the
+sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
+restores the words both preceding and formerly governed by $i$ to the stack.
+
+In other words, the word on top of the stack and its \emph{rightward descendents}
+are all marked as disfluent, and the stack is popped. We then restore its
+leftward children to the stack, and
+all dependencies to and from words marked disfluent are deleted. 
+
+\subsection{Training}
+
+We follow \citet{collins:02} in training an averaged perceptron model to predict
+transition \emph{sequences}, rather than individual transitions.  This type of model
+is often referred to as a structured perceptron, or sometimes a global perceptron.
+During training, if the model does not predict the correct sequence, an update
+is performed, based on the gold-standard sequence and part of the sequence predicted
+by the current weights.
+Only part of the sequence is used to calculate the weight update, in order to
+account for search errors. We use the maximum violation strategy described by
+\citet{huang:12} to select the subsequence to update from.
+
+To train our model using the dynamic oracle, we use the latent-variable structured
+perceptron algorithm described by \citet{sun:09}.
+Beam-search is performed to find the highest-scoring gold-standard
+sequence, as well as the highest-scoring prediction. We use the same beam-width for both
+search procedures.
+\subsection{Features}
+
+\subsubsection{Disfluency Features}
+
+\clearpage
+
+\section{Joint Segmentation and Parsing}
+
+We experimented with two ways of encoding utterance segmentation decisions into
+the transition system.  The first introduces a distinct transition,
+\textbf{B}reak, for segmentation breaks.
+The second approach encodes the segmentation boundaries as 
+labelled dependency arcs, between the words that govern each segment.
+
+The main difference between the two strategies is that the Break transition
+segments the utterance at the leaf level: it is applied when the last word
+of segment 1 is on top of the stack, and the first word of segment 2 is at the
+start of the buffer.  With the second strategy, the segmentation decision is
+made when the governor of segment 1 is on top of the stack, and the governor
+of segment 2 is at the start of the buffer.
+
+\subsection{Segment (leaf)}
+
+The ``leaf'' version of the Segment transition, abbreviated S$_l$, is applied when
+the last word of a segment is on the stack, and the first word of the next segment
+is at the start of the buffer.  This is achieved through a pre-condition, which
+stipulates that the transition can only be applied when the word on top of the
+stack has no rightward children, and the first word of the buffer has no leftward
+children --- in other words, that they are both leaves of the parse tree.  
+
+\subsection{Segment (governors)}
+
+In this segmentation strategy, the governors are accumulated on the stack, and
+popped once the parser reaches the end of the buffer.  The segment boundary is
+inserted between their rightmost and leftmost leaf words.
+The transition is stated:
+
+\begin{eqnarray}
+    (\sigma | i | j, \emptyset , A, D) \vdash (\sigma, | i, \emptyset, A, D, S_i \ne S_j ) & \mathrm{S}_G
+\end{eqnarray}
+
+That is, if there are at least two words $i$ and $j$ on the stack, and the buffer
+is empty, pop $j$ and assert that $i$ and $j$ do not belong to the same segment.
+
+\subsection{Segment between governor and leaf}
+
+In this segmentation strategy, the governors are popped from the stack one at
+a time, when the first word of the next segment is at the start of the buffer.
+
+sentence-final punctuation prediction method described by \citet{zhang:13},
+in that it 
+
+\clearpage
+
+\begin{figure}
+\begin{dependency}[theme=simple, segmented edge]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    Clause 1 \& Clause 2 \& Clause 3 \& Clause 4 \& $\langle /s \rangle$ \\
+    \end{deptext}
+    \depedge{2}{1}{}
+    \depedge{3}{2}{}
+    \depedge{4}{3}{}
+    \depedge{5}{4}{}
+    \end{dependency}
+    \caption{Left-branching attachment}
+\end{figure}
+
+
+\section{Experiments}
+
+We use the Switchboard portion of the Penn Treebank \citep{marcus:93}, as
+described in Section \ref{sec:swbd}, to train our joint
+models and evaluate them on dependency parsing and disfluency detection. The
+pre-processing and dependency conversion are described in Section~\ref{sec:deps}.
+We use the standard train/dev/test split from \citet{Charniak01a}: Sections 2
+and 3 for training, and Section 4 divided into three held-out sections, the first
+of which is used for final evaluation.
+
+Our parser evaluation uses the \sparseval \citep{sparseval} metric.
+However, we wanted to use the Stanford dependency converter, for the 
+reasons described in Section \ref{sec:deps}, so we
+used our own implementation.
+Because we do not need to deal with recognition
+errors, we do not need to report our parsing results using $P$/$R$/$F$-measures.
+Instead, we report an unlabelled accuracy score, which refers to the percentage
+of fluent words whose governors were assigned correctly.  Note that words marked
+as disfluent cannot have any incoming or out-going dependencies, so if a word is
+incorrectly marked as disfluent, all of its dependencies will be incorrect.
+
+We follow \citet{Johnson04a} and others in restricting our disfluency evaluation
+to speech repairs, which we identify as words that have a node labelled \textsc{edited}
+as an ancestor.  Unlike most other disfluency detection research, we train only
+on the \textsc{mrg} files, giving us 619,236 words of training data instead of
+the 1,482,845 used by the pipeline systems.  It may be possible to improve our
+system's disfluency detection by leveraging the additional data that does not
+have syntactic annotation in some way.
+
+All parsing models were trained for 15 iterations.
+We found that optimising the number of iterations on a development set led to
+small improvements that did not transfer to a second development set (part of
+Section 4, which \citet{Charniak01a} reserved for `future use').
+
+We test for statistical significance in our results by training 20 models for
+each experimental configuration, using different random seeds. The random seeds
+control how the sentences are shuffled during training, which the perceptron
+model is quite sensitive to.  We use the Wilcoxon rank-sums non-parametric test.
+The standard deviation in \textsc{uas} for a sample was typically around 0.05\%,
+and 0.5\% for disfluency $F$-measure.
+
+All of our models use beam-search decoding, with a beam width of 32. We found that
+a beam width of 64 brought a very small accuracy improvement (about 0.1\%), at
+the cost of 50\% slower run-time. Wider beams than this brought no accuracy improvement.
+Accuracy seems to plateau with slightly narrower beams than on newswire text.
+This is probably due to the shorter sentences in Switchboard.
+
+The baseline and pipeline systems are configured in the same way, except that
+the baseline parser is modified slightly to allow it to predict disfluencies,
+using a special dependency label, \textsc{erased}.  All descendants of a word 
+attached to its head by this label are marked as disfluent.
+Both the baseline and pipeline/oracle parsers use the same feature set:
+the \citet{zhang:11} features, plus our Brown cluster features.
+
+The baseline system is a standard arc-eager
+transition-based parser with a structured averaged perceptron model and beam-search
+decoding.  The model is trained in the standard way, with a `static' oracle and
+maximum-violation update, following \citep{huang:12}.
+
+\section{Results}
+\subsection{Comparison with Pipelines}
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr}
+        System & Parse & Disfl. & Segments \\
+        \hline \hline
+        Seg. $\rightarrow$ Disfl. + Parse & & & \\
+        Seg. + Disfl. + Parse  & & & \\
+        \hline
+        O.Seg. $\rightarrow$ Disfl. + Parse & & & \\
+        O.Seg. $\rightarrow$ O.Disfl. $\rightarrow$ Parse & & & \\
+    \end{tabular}
+\end{table}
+
+
+\subsection{Test Set Evaluation}
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr}
+        System & Parse & Disfl. & Seg. \\
+        \hline \hline
+        Seg. $\rightarrow$ Disfl. + Parse & & & \\
+        Seg. + Disfl. + Parse  & & & \\
+    \end{tabular}
+\end{table}
+
+\clearpage
+
+\section{Related Work}
+
+\section{Conclusion}
+\bibliography{main}
+\bibliographystyle{aclnat}
+
+
+\end{document}
