@@ -197,7 +197,7 @@ are corrected by the speaker, often with an explicit editing term in the
 \emph{interregnum}, before being replaced by the text marked \emph{repair}.
 Speech repairs are a particularly problematic for syntactic
 parsers, because of the complicated dependency structures that can arise between the
-reparandum, repair and the fluent sentence \citep{johnson:05}.
+reparandum, repair and the fluent sentence \citep{Johnson04a}.
 
 \begin{table}
 \centering
@@ -282,19 +282,101 @@ Section \ref{sec:delete}.
 \section{Joint Disfluency Detection and Parsing}
 
 Our model is based on the joint incremental disfluency detection and parsing
-system described by Honnibal and Johnson (2014).  We briefly describe how the
-system works in this section, before introducing our novel contributions from
-Section 4 onwards.
+system described by Honnibal and Johnson (2014), although we adopt a different
+transition system --- \emph{arc hybrid} \citep{kuhlmann:11}, instead of
+\emph{arc eager} \citep{nivre:03}.  The two transition systems achieve comparable
+accuracy, but we find the arc hybrid system slightly simpler.  The increased
+simplicity was useful for devising the transition strategies for segmentation
+described in Section \ref{sec:break_trans}.  The change to the arc hybrid
+transition system necessitates some feature engineering, described in Section
+\ref{sec:features}.
+We briefly describe how the system works in this section, before introducing our
+novel contributions from Section 4 onwards.
 
 \subsection{Transition-based Dependency Parsing}
 
+A transition-based parser consists of a configuration (or `state'), and a set
+of actions (or `transition system').  Actions are chosen from the transition-system
+and applied to the state, until a termination condition is reached.
+
+For us, a state is a 4-tuple $c = (\sigma, \beta, A, L)$, where $\sigma$ and $\beta$
+are disjoint sets of word indices termed the \emph{stack} and \emph{buffer}
+respectively, and $A$ is a vector of head indices representing the dependency parse,
+and $L$ is a vector of dependency labels.  Parsing terminates when the stack is
+empty, and the buffer is exhausted.
+
+\subsection{Arc-Hybrid Transition System}
+
+We depart from Honnibal and Johnson (2014) in using the arc-hybrid system \citep{kuhlmann:11},
+instead of the arc-eager system \citep{nivre:03}.
+The arc-hybrid transition system \citep{kuhlmann:11} consists of three types of actions:
+
+\begin{itemize}
+    \item Shift. Push the first word of the buffer onto the stack, removing it
+          from the buffer.
+      \item Left$_L$. Set the head of the word on top of the stack to be the
+            word at the start of the buffer, and assign it the label $L$. Pop
+            the top word from the stack.
+      \item Right$_L$. Set the head of the word on top of the stack to be the
+            word immediately behind it on the stack, and assign it the label $L$.
+            Pop the top word from the stack.
+\end{itemize}
+
+The actions are summarised in Figure \ref{fig:arc_hybrid}.  We find it easier
+to reason about transition systems based on the arc-hybrid system, because it has
+several convenient properties.
+
+First, the set of words in the stack, and the set
+of words that have been assigned a head, are disjoint in the arc-hybrid
+system.  In the arc-eager system, words on the stack may or may not
+have a head set.
+Another convenient property is thatbBoth the Left-Arc and the Right-Arc assign
+a head to the word on top of the stack.  In contrast, in the arc-standard system,
+the Left-Arc assigns a head to the \emph{second} word on the stack,
+while in the arc-eager system the Right-Arc assigns a head to the
+first word of the buffer.  Because of this,
+both the Left-Arc and the Right-Arc
+\emph{pop} the stack. In the arc-eager system, Right-Arc pushes the stack.
+
+The convenient properties of the arc-hybrid system removes the need for the
+complicated pre-conditions that the arc-eager system requires to ensure
+parsing is monotonic \citep{honnibal:13}.  It is also easier to reason about
+which actions will make some arcs newly unreachable.  \citet{goldberg:13}
+give a \emph{dynamic oracle} for the arc-hybrid system, which we use as
+part of our training algorithm.
+
+
 \subsection{The Edit Transition}
 
-\subsection{Decoding}
+We employ the Edit transition defined by Honnibal and Johnson (2014), to handle
+speech repairs.
+The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
+disfluent, along with its rightward descendents --- i.e., all words in the
+sequence $i...j-1$, where $j$ is the word at the start of the buffer. It then
+restores the words both preceding and formerly governed by $i$ to the stack.
 
-\subsection{Training}
+In other words, the word on top of the stack and its \emph{rightward descendents}
+are all marked as disfluent, and the stack is popped. We then restore its
+leftward children to the stack, and
+all dependencies to and from words marked disfluent are deleted. 
+The words restored to the stack may
+become rightward children of the word behind them on the stack, or leftward
+children of a word from the buffer.
+
+\subsection{Training and Decoding}
+
+We follow Honnibal and Johnson (2014) in employing beam-search decoding, and
+use their training strategy, which employs the \citet{sun:09} latent-variable
+variant of the \citet{collins:02} structured perceptron, with weight updates
+calculated from the \citet{huang:12} \emph{maximum violation} strategy.  We
+also employ the path-length normalisation technique that Honnibal and Johnson (2014)
+recommend: when calculating the figure-of-merit for the beam, we use the
+\emph{mean transition score}, instead of the \emph{total transition score}.
+The adjustment is necessary because variable length transition histories are
+possible when the Edit transition is employed.
 
 \subsection{Features}
+\label{sec:features}
 
 \subsection{POS Tagging}
 
@@ -341,19 +423,9 @@ a time, when the first word of the next segment is at the start of the buffer.
 sentence-final punctuation prediction method described by \citet{zhang:13},
 in that it 
 
+\clearpage
+\section{Delete Transition}
 
-\begin{figure}
-\begin{dependency}[theme=simple, segmented edge]
-    \begin{deptext}[column sep=.075cm, row sep=.1ex]
-    Clause 1 \& Clause 2 \& Clause 3 \& Clause 4 \& $\langle /s \rangle$ \\
-    \end{deptext}
-    \depedge{2}{1}{}
-    \depedge{3}{2}{}
-    \depedge{4}{3}{}
-    \depedge{5}{4}{}
-    \end{dependency}
-    \caption{Left-branching attachment}
-\end{figure}
 
 \clearpage
 \section{Baseline CRF System}
