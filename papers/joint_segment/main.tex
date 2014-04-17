@@ -356,10 +356,12 @@ and a set of actions (or `transition system').  Actions are chosen from the
 transition-system and applied to the state, until the stack is empty and the
 buffer is exhausted.
 
-We follow the notation of \citet{goldberg:13}, in which a configuration
-is a configuration $c = (\sigma, \beta, A)$,
+A configuration $c = (\sigma, \beta, A, L)$,
 where $\sigma$ and $\beta$ are disjoint sets of word
-indices termed the \emph{stack} and \emph{buffer} respectively, and $A$ is the
+indices termed the \emph{stack} and \emph{buffer} respectively, $A$ is a
+vector of head indices, and $L$ is a vector of dependency labels.  A dependency
+arc from a head $h$ to a dependent $d$ with label $\mathcal{l}$ is represented $A_d=h$
+and $L_d=\mathcal{l}$.
 set of dependency arcs.
 A vertical bar is used to denote concatenation
 to the stack or buffer, e.g. $\sigma | i$ indicates a stack with the topmost
