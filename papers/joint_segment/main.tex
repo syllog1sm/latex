@@ -113,78 +113,58 @@ better than the \textsc{crf}-based pipeline.
 % P1
 \section{Introduction}
 
+
 Previous speech understanding systems have required that the input be
-pre-segmented into sentence-like units. 
-For example, the following turn from one of the Switchboard conversational speech
-transcripts is segmented into three utterances, at the slashes:
+pre-segmented into sentence-like units.  However, the placement of the segment
+boundaries is somewhat arbitrary.  For example, the following turn from the
+Switchboard conversational speech transcripts is segmented into three utterances,
+at the slashes:
 
 \begin{lexample}
 \small
-uh and really we were really forced into keeping a budget because i 'm i 'm paid once a month which sort of sort of forces some uh uh restrictions / \\
+uh and really we were really forced into keeping a budget because i 'm i 'm paid
+once a month which sort of sort of forces some uh uh restrictions / \\
 and you need to make sure all your bills are paid / \\
 uh about yourself
 \end{lexample}
 
-\noindent However, such segment boundaries may be less critical for transition-based
-parsers, which often exploit heuristic search procedures to achieve linear run
-times.  The boundaries may still be useful for improving the readability of
-the transcripts \citep{jones:03}, but recent work has shown that punctuation
-can be predicted accurately using a joint transition-based parsing model \citep{dongzhang:13}.
-Their model builds on the findings of \citet{zhang:cl11}, who found that a
-transition-based framework with beam-search decoding could be successfully applied
-to a range of syntactic processing tasks.
+\noindent An annotator could reasonably omit the first boundary, analysing
+the first two units as a single conjoined sentence.  
+We suspect this uncertainty in sentence boundary location
+might be problematic for syntactic parsing, since the boundaries could
+constrain the syntactic analyses in ways that are inconsistent with the parser's
+expectations.  This motivated us to explore approaches where the syntactic parser
+itself is responsible for identifying the locations of sentence boundaries.  Our
+approach here is to associate entire discourse turns with a single syntactic
+structure that consists of a sequence of sentences.
+While the length of these turns makes conventional $O(n^3)$ parsing algorithms
+impractical, incremental transition-based parsers now achieve high accuracy,
+while running in time linear in the length of the input string.
 
-We find that this framework is particularly successful for spoken language understanding.
-We replace a pipeline of components, consisting of a segmentation system,
-disfluency detector, and parser with a single model, which jointly performs
-all three tasks.  The system builds on the work of \citet{honnibal:14}, who
-showed that a similar transition-based parser could achieve state-of-the-art
-accuracy at disfluency detection, by including an Edit transition to detect
-and discard disfluent words from the stack.
+We compared two ways of encoding the segmentation decisions into the transition
+system against a standard pipeline approach, which used a \textsc{crf} model
+to segment the input prior to parsing.  Our model is based on the system described
+by \citet{honnibal:14}, who showed that a joint model of disfluency detection
+and parsing produced state-of-the-art accuracy on both tasks.
+Their experiments follow most previous work in using gold-standard segment boundaries.
+In that condition, our model achieved similar parsing and disfluency
+detection results: 90.5\% \textsc{uas}, and 84.1\% $F$-measure.
+We then repeated the experiment with \textsc{crf}-predicted segmentation,
+and found that accuracy dropped to 86.1\% and 76\%.
+To test whether the syntactic model was particularly sensitive to segmentation,
+we trained and evaluated the \citet{qian:13} \textsc{m3n} disfluency tagger on
+unsegmented input, and found that its accuracy dropped by a similar amount.
 
-Most previous work on disfluency detection has assumed that the input comes
-pre-segmented, and have followed \citet{Charniak01a} in evaluating their systems
-using gold-standard segment boundaries.  We find that the \citet{qian:13}
-\textsc{m3n} model
-drops in $F$-measure from 83.4\% to 78.1\% when
-the gold-standard segmentation is not available.  Our joint model
-achieves XX.X\%, the best such score that we are aware of.
-
-%We adopt a similar joint model,
-%although we adopt a transition-system simplification from \citet{kuhlmann:11},
-%and integrate the detection of filled-pauses and other non-repair disfluencies
-%into the model.
-
-%In this paper, we show that this joint approach can be successfully extended
-%to segmentation.  We present a joint transition-based model that predicts
-%segment boundaries, repair and non-repair disfluencies, syntactic heads, and
-%dependency labels.  The system runs in expected linear-time, and achieves
-%state-of-the-art accuracy.
-
-%For comparison, we prepared a standard \textsc{crf}-based segmentation system,
-%which achieved 96.5\% accuracy.  Features were based on the word and part-of-speech
-%tag context.  No phonetic features were used in any of our experiments.
-
-Our main comparison is against a pipeline approach, where a \textsc{crf} model
-is used to segment the input prior to parsing.  We find that the joint model
-achieves superior accuracy at both disfluency detection and parsing.
-The key disadvantage of the pipeline approach is error-propagation:
-when the segmenter makes an error,
-it leaves the parser with mistaken input.
-The joint model searches both spaces simultaneously,
-which proves advantageous.
-Despite slightly lower segmentation accuracy, the joint
+We then compared the pipeline approach against our two joint models.
+The two performed similarly, indicating that the model was not particularly
+sensitive to the way the segmentation decisions were encoded.
+Despite slightly lower segmentation accuracy,
+the best joint
 model achieves 87.6\% parse accuracy, substantially higher than the 86.1\%
 accuracy of the pipeline approach.
 
 
-%On disfluency detection, we found that the lack of gold-standard segment boundaries
-%substantially reduced the accuracy of our syntax-based joint models.  However,
-%we found that a recent sequence-based disfluency detection system 
-%achieved a similar drop in accuracy, from 83.4\% to 78\% $F$-measure.  Our
-%best joint model went from 84.4\% to 7X\%, out-performing the \textsc{crf}-based
-%model by 1.X\%.
-
+\section{Spoken Language Understanding}
 
 \begin{figure}
     \begin{tabular}{l}
@@ -200,8 +180,6 @@ it identifies speech-repairs, marked \emph{reparandum} above.
 \label{fig:shriberg}}
 \end{figure}
 
-
-\section{Spoken Language Understanding}
 
 %Unscripted speech has several characteristics that make spoken language understanding
 %a distinct problem from understanding written text.  Two such features are that
@@ -241,7 +219,7 @@ tend to simply interrupt the fluent sentence, with little syntactic interaction.
     20-50 & 6,406 & 9,765 \\
     50-100 & 161 & 2,106 \\
     100-200 & 0 & 257 \\
-    200-500 & 0 & 20 \\
+    200-422 & 0 & 20 \\
     \hline
     Total & 91,455 & 45,106 \\
     \hline
@@ -315,10 +293,10 @@ by subtyping the Edit transition with different disfluency labels.
     \small
     \begin{tabular}{lr}
         \hline
-        $(\sigma, i | \beta, A) \vdash (\sigma | i, \beta, A)$ & S \\
-        $(\sigma | i | j, \beta, A) \vdash (\sigma | i, \beta, A \cup \{i, j, l) \})$ & R$_l$ \\ 
-        $(\sigma | i, j | \beta, A) \vdash (\sigma, j | \beta, A \cup \{(j, i, l)\})$ & L$_l$ \\
-        $(\sigma | i, j | \beta, A) \vdash (\sigma | [x_1, x_n], j | \beta,A'')$ & E$_l$ \\
+        $(\sigma, i | \beta, A, L) \vdash (\sigma | i, \beta, A, L)$ & S \\
+        $(\sigma | i | j, \beta, A, L) \vdash (\sigma | i, \beta, A_{j=i}, L_{j=l}$ & R$_l$ \\ 
+        $(\sigma | i, j | \beta, A, L) \vdash (\sigma, j | \beta, A_{i=j}, L_{i=l}$ & L$_l$ \\
+        $(\sigma | i, j | \beta, A, L) \vdash (\sigma | [x_1, x_n], j | \beta, A', L')$ & E$_l$ \\
         Where \\
         $A' = A \setminus \{(x, y, l) \;\mathrm{or}\; (y, x, l) : \forall x \in [i, j), \forall y \in \mathbb{N} \}$ \\
             $A'' = A' \cup \{(-, x, l) : \forall x \in [i, j) \} $ \\
@@ -360,15 +338,13 @@ A configuration $c = (\sigma, \beta, A, L)$,
 where $\sigma$ and $\beta$ are disjoint sets of word
 indices termed the \emph{stack} and \emph{buffer} respectively, $A$ is a
 vector of head indices, and $L$ is a vector of dependency labels.  A dependency
-arc from a head $h$ to a dependent $d$ with label $\mathcal{l}$ is represented $A_d=h$
-and $L_d=\mathcal{l}$.
-set of dependency arcs.
+arc from a head $h$ to a dependent $d$ with label $l$ is represented $A_{d=h}$,
+$L_{d=l}$.  A word $d$ is marked disfluent by setting its head to itself, i.e.
+$A_{d=d}$.  Labels are used to distinguish the different types of dependencies,
+e.g. filled pauses, speech repairs, etc.
 A vertical bar is used to denote concatenation
 to the stack or buffer, e.g. $\sigma | i$ indicates a stack with the topmost
 element $i$ and remaining elements $\sigma$.
-A dependency arc $(h, d, l)$ is directed from the
-head $h$ to the dependent $d$, labelled $l$.
-A word $d$ is marked disfluent by adding an arc $(-, d, l)$ to $A$.
 
 \subsection{Arc-Hybrid Transition System}
 
