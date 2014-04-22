@@ -160,8 +160,8 @@ Despite slightly lower segmentation accuracy,
 the best joint
 model achieves 87.6\% parse accuracy, substantially higher than the 86.1\%
 accuracy of the pipeline approach.
-The two joint models performed similarly, indicating that a variety of encoding
-strategies could be adopted.
+The two joint models performed similarly, indicating that a variety of 
+transition-system encoding strategies could be equally successful.
 
 
 \section{Spoken Language Understanding}
@@ -203,7 +203,7 @@ Speech repairs are particularly problematic for syntactic
 parsers, because of the complicated dependency structures that can arise between the
 reparandum, repair and the fluent sentence \citep{Johnson04a}.
 In contrast, other types of disfluencies tend to be lexically restricted, and
-tend to simply interrupt the fluent sentence, with little syntactic interaction.
+tend to simply interrupt the fluent sentence, with limited syntactic interaction.
 
 \begin{table}
 \centering
@@ -270,7 +270,7 @@ Table \ref{tab:seg_freqs} shows how segmentation affects the length of training
 inputs.  Without any utterance segmentation, the inputs consist of whole turns,
 using the gold-standard diarisation in the \textsc{mrg} files.
 Segmentation doubles the number of inputs (and so halves their length, on average);
-i.e., on average each turn contains one segment boundary.
+i.e., on average each turn contains one sentence-medial segment boundary.
 
 The Switchboard syntactic annotations come in the form of syntactic brackets.
 We follow Honnibal and Johnson (2014) in using
@@ -294,13 +294,15 @@ by subtyping the Edit transition with different disfluency labels.
     \begin{tabular}{lr}
         \hline
         $(\sigma, i | \beta, A, L) \vdash (\sigma | i, \beta, A, L)$ & S \\
-        $(\sigma | i | j, \beta, A, L) \vdash (\sigma | i, \beta, A_{j=i}, L_{j=l}$ & R$_l$ \\ 
-        $(\sigma | i, j | \beta, A, L) \vdash (\sigma, j | \beta, A_{i=j}, L_{i=l}$ & L$_l$ \\
-        $(\sigma | i, j | \beta, A, L) \vdash (\sigma | [x_1, x_n], j | \beta, A', L')$ & E$_l$ \\
+        $(\sigma | i | j, \beta, A, L) \vdash (\sigma | i, \beta, A(j)=i, L(j)=l$ & R$_l$ \\ 
+        $(\sigma | i, j | \beta, A, L) \vdash (\sigma, j | \beta, A(i)=j, L(i)=l$ & L$_l$ \\
+        $(\sigma | i, j | \beta, A, L) \vdash (\sigma | y, j | \beta, A(y)=y, L(y)=z)$ & E$_l$ \\
         Where \\
-        $A' = A \setminus \{(x, y, l) \;\mathrm{or}\; (y, x, l) : \forall x \in [i, j), \forall y \in \mathbb{N} \}$ \\
-            $A'' = A' \cup \{(-, x, l) : \forall x \in [i, j) \} $ \\
         $x_1...x_n$ are the former left children of $i$ \\
+        $y = [x_1, x_n]$ \\
+        $z = \mathrm{edited}$ \\
+        %A \setminus \{(x, y, l) \;\mathrm{or}\; (y, x, l) : \forall x \in [i, j), \forall y \in \mathbb{N} \}$ \\
+        %    $A'' = A' \cup \{(-, x, l) : \forall x \in [i, j) \} $ \\
         \hline
 \end{tabular}
 \caption{\small Transition system for the parser, with $\sigma$ denoting the
@@ -328,8 +330,8 @@ Our novel contributions are described from Section 4 onwards.
 \subsection{Transition-based Dependency Parsing}
 
 We follow recent work on speech parsing in using an incremental, transition-based
-dependency parser.
-A transition-based parser \citep{nivre:08} consists of a configuration,
+dependency parser \citep{rasooli:13,honnibal:14}.
+A transition-based parser \citep{nivre:03} consists of a configuration,
 and a set of actions (or `transition system').  Actions are chosen from the
 transition-system and applied to the state, until the stack is empty and the
 buffer is exhausted.
@@ -338,9 +340,9 @@ A configuration $c = (\sigma, \beta, A, L)$,
 where $\sigma$ and $\beta$ are disjoint sets of word
 indices termed the \emph{stack} and \emph{buffer} respectively, $A$ is a
 vector of head indices, and $L$ is a vector of dependency labels.  A dependency
-arc from a head $h$ to a dependent $d$ with label $l$ is represented $A_{d=h}$,
-$L_{d=l}$.  A word $d$ is marked disfluent by setting its head to itself, i.e.
-$A_{d=d}$.  Labels are used to distinguish the different types of dependencies,
+arc from a head $h$ to a dependent $d$ with label $l$ is represented $A(d)=h$,
+$L(d)=l$.  A word $d$ is marked disfluent by setting its head to itself, i.e.
+$A(d)=d$.  Labels are used to distinguish the different types of dependencies,
 e.g. filled pauses, speech repairs, etc.
 A vertical bar is used to denote concatenation
 to the stack or buffer, e.g. $\sigma | i$ indicates a stack with the topmost
@@ -351,8 +353,9 @@ element $i$ and remaining elements $\sigma$.
 We depart from Honnibal and Johnson (2014) in using the arc-hybrid system \citep{kuhlmann:11},
 instead of the arc-eager system \citep{nivre:03}. The two transition systems achieve
 comparable accuracy \citep{goldberg:13}, but we find the arc hybrid system slightly
-simpler, particularly when designing a training oracle for our extended transition
-system (Section \ref{sec:oracle}).
+simpler.
+%particularly when designing a training oracle for our extended transition
+%system (Section \ref{sec:oracle}).
 %The increased simplicity was useful for devising the transition strategies for segmentation
 %described in Section \ref{sec:break_trans}. 
 
@@ -496,7 +499,7 @@ made when the buffer is exhausted.  Because the arc-hybrid system is used, rathe
 than the arc-eager system, the head of a word is not determined when it is pushed
 onto the stack --- only when it is popped.  Thus, even when the buffer is exhausted,
 the parser may decide to create a dependency between two governors, instead of
-using the Left-Arc to attach them to the root symbol.
+using the Left-Arc to attach them to the \textsc{root} symbol.
 
 Figure \ref{fig:left_state} shows two similar parse states, where this decision
 arises.  In the first state, the correct decision is \textbf{Left-Arc}, because
@@ -527,11 +530,12 @@ same state may be advantageous.
         the only word on the stack (circled), and the first word of the
         next segment, \emph{they}, is at the start of the buffer (indicated by
         an arrow). After the Break transition is applied, \emph{wear} is popped
-    from the stack, and the dashed arc is added from the \textsc{root} symbol.}
+    from the stack, and the dashed arc is added from the \textsc{root} symbol.
+    \label{fig:break_state}}
 \vspace*{-3em}
 \end{figure}
 The second strategy we present uses a specific Break transition.  The transition
-is designed to be applied \emph{early}, instead of late: it should be applied
+is designed to be applied early, instead of late: it should be applied
 when the first word of the new segment is at the start of the buffer.  This is
 achieved by applying a pre-condition to the transition, that prevents it from being
 applied if the word at the start of the buffer has any
@@ -559,31 +563,52 @@ not render any gold-standard arcs \emph{newly unreachable}.  That is, if the
 best parse achievable from the result of applying the action scores no worse
 than the best parse achievable before the action was applied. 
 
-%Following the notation of \citeauthor{goldberg:13}, we say that an arc $(h, d)$
-%is \emph{reachable} from a configuration $c$, written $c \leadsto (h, d)$,
-%if there is some (possibly empty) sequence of transitions that adds $(h, d)$ to
-%$c$.
+\citet{goldberg:13} define exact training oracles for the arc-eager, arc-hybrid,
+and easy-first transition systems. The oracles are exact in the sense that they
+allow the calculation of a cost, $\mathcal{C}$, of applying any action to any state, where
+$\mathcal{C}$ is the difference in the optimal scores reachable before and after the action
+was applied.
 
-\citeauthor{goldberg:13} prove that in the arc-hybrid system, an arc
-$(h, d)$ is reachable from a configuration $c$ if one of the following conditions
-hold:
+\citet{honnibal:14} do not give an exact oracle for their Edit transition. Instead,
+they describe how they modify the arc-eager oracle defined by \citet{goldberg:12},
+to calculate the set of gold-standard actions from a given configuration.  Their
+oracle is inexact in the sense that exact costs are not calculated; actions are
+simply marked zero-cost or non-zero cost, which is sufficient for the training
+algorithm.
+
+We adopt this approximation, and determine the set of gold-standard actions
+as follows.  We begin with the arc-hybrid oracle defined by \citet{goldberg:13},
+who prove that in the arc-hybrid system, an arc $(h, d)$ is reachable from a
+configuration $c$ if one of the following conditions hold:
 
 \begin{enumerate}
-    \item $(h, d)$ is already derived (i.e. $(h, d) \in A_c)$);
+    \item $(h, d)$ is already derived (i.e. $A(d)=h$);
     \item $h$ and $d$ are in the buffer;
     \item $h$ is on the stack and $d$ is in the buffer;
     \item $d$ is on the stack and $h$ is in the buffer;
     \item $h$ is immediately behind $d$ on the stack.
 \end{enumerate}
 
-%Further, they prove that in both the arc-eager and arc-hybrid systems, the set
-%of arcs individually reachable from a given configuration are \emph{collectively}
-%reachable from some transition sequence.  This makes the oracle 
+\noindent A word is marked as disfluent by setting its head to itself, i.e. it is an arc
+$(d, d)$.  
+The Edit transition adds the following ways to reach an arc $(h, d)$:
 
-We follow \citet{honnibal:14} in not defining arcs to or from disfluent words
-in the gold-standard, but in extending the gold-standard to include the set of
-disfluent arcs, $D$.  We extend the notion of \emph{reachability} accordingly,
-writing a disfluent word as a dependency $(-, d)$.
+\begin{enumerate}
+    \setcounter{enumi}{5}
+    \item $h=d$ and $d$ is on the stack;
+    \item $h=d$, $d$ is the leftward child of a word $s$, and $s$ is on the stack;
+    \item $d$ is the first leftward child of a word $s$, $s$ is the $i$th word
+          on the stack, and $h$ is the $i-1$ word on the stack;
+    \item $d$ is the $i$th leftward child of a word $s$, $h$ is the $i-1$
+          leftward child of $s$, and $s$ is on the stack.
+\end{enumerate}
+
+Conditions 6 and 7 are common to the system of \citet{honnibal:14}, while
+conditions 8 and 9 are introduced by our use of the arc-hybrid system.  Conditions
+7, 8 and 9 all rely on marking a word $s$ as disfluent.  If $s$ is not disfluent
+in the gold-standard, then arcs recovered this way will incur additional loss.
+\newpage
+
 \section{Experiments}
 
 We use the Switchboard portion of the Penn Treebank \citep{marcus:93}, as
@@ -591,7 +616,7 @@ described in Section \ref{sec:swbd}, to train and evaluate our models.  Unfortun
 this complicates comparison with most of the prior work on utterance segmentation,
 which used the RT'04 shared-task data distributed by \textsc{darpa}.  We use
 the Switchboard corpus for consistency with previous work on disfluency 
-detection and parsing \citep{rasooli:13,rasooli:14,honnibal:14,qian:13}.
+detection and parsing \citep{rasooli:13,honnibal:14,qian:13}.
 
 We follow the pre-processing and dependency conversion steps described in
 Section \ref{sec:swbd}: the text was lower-cased, partial words were removed,
@@ -600,21 +625,15 @@ using the Stanford Dependency Converter \citep{stanford_deps}.
 We use the standard train/dev/test split from \citet{Charniak01a}: Sections 2
 and 3 for training, and Section 4 divided into three held-out sections, the first
 of which is used for final evaluation.
-We follow Honnibal and Johnson (2014) in using the \sparseval \citep{sparseval}
+We follow \citet{honnibal:14} in using the \sparseval \citep{sparseval}
 metric to evaluate our parser, using their implementation.
 
 We follow \citet{Johnson04a} and others in restricting our disfluency evaluation
 to speech repairs, which we identify as words that have a node labelled \textsc{edited}
-as an ancestor in the Switchboard phrase-structure trees.  Unlike most other
-disfluency detection research, we train only
-on the \textsc{mrg} files, giving us 619,236 words of training data instead of
-the 1,482,845 used by the pipeline systems.  It may be possible to improve our
-system's disfluency detection by leveraging the additional data that does not
-have syntactic annotation in some way.
-
-We found that optimising the number of iterations on a development set led to
-small improvements that did not transfer to a second development set (part of
-Section 4, which \citet{Charniak01a} reserved for `future use').
+as an ancestor in the Switchboard phrase-structure trees.  We also follow them
+in training only on the \textsc{mrg} files, giving us 619,236 words of training
+data instead of the 1,482,845 used by other disfluency detection systems, such
+as \citet{qian:13}.
 
 We test for statistical significance in our results by training 20 models for
 each experimental configuration, using different random seeds. The random seeds
@@ -623,28 +642,10 @@ model is quite sensitive to.  We use the Wilcoxon rank-sums non-parametric test.
 The standard deviation in \textsc{uas} for a sample was typically around TODO,
 and TODO for disfluency $F$-measure.
 
-All of our models use beam-search decoding, with a beam width of TODO. We found that
-a beam width of TODO brought a very small accuracy improvement (about 0.1\%), at
-the cost of 50\% slower run-time. Wider beams than this brought no accuracy improvement.
-All parsing models were trained for 15 iterations.
-%Accuracy seems to plateau with slightly narrower beams than on newswire text.
-%This is probably due to the shorter sentences in Switchboard.
-
-\subsection{Features}
-
-Used Goldberg and Nivre's features for Arc-Hybrid, then added Honnibal and Johnson
-disfluency features. Includes Brown cluster features. Templates attached in 
-supporting materials.
-
-\subsection{CRF Baseline}
-
-Used Wapiti, CRF, L-BFGS, elastic-net penalty tuned on devevelopment data.
-Pattern file attached in supporting materials.
-\clearpage
-
-\section{Results}
-\label{sec:results}
-\subsection{Choice of Segmentation Strategy}
+The main hyper-parameters of our model are the number of training iterations,
+and the beam-width, which controls a speed/accuracy trade-off.  We found that
+only small accuracy improvements were obtained with beams wider than 8, and follow
+\citet{honnibal:14} in using 15 training iterations.  
 
 \begin{table}
     \centering
@@ -677,18 +678,61 @@ Pattern file attached in supporting materials.
         detection system, on input with gold-standard segmentation.
         \textbf{S (Gold) $\rightarrow$ D+P} Joint disfluency detection and parsing,
              on input with gold-standard segmentation. \label{tab:dfl}}
+\vspace*{-4em}
 \end{table}
+
+\subsection{Features}
+
+We base our feature set on the arc-hybrid features used by
+\citet{goldberg:13},
+%\footnote{\url{http://bitbucket.org/yoavgo/tacl2013dynamicoracles/src/efc0b61c4f45331bf887dd26580465964014c28f/lefttoright/features/extractors.py?at=default}},
+with the additional disfluency features used by \citet{honnibal:14}.  The
+specific feature templates used are provided in the supplementary materials.
+
+The templates refer to various combinations of the word-form, part-of-speech tag,
+and the Brown cluster \citep{brown:92} of various tokens
+in the context.  The tokens are the top three words of the stack, the left and
+right subtree of the top word of the stack, the first three words of the buffer,
+and the left subtree of the first word of the buffer.  Additionally, we follow
+\citet{honnibal:14} in using the leftmost and rightmost edge of the top word
+of the stack and the first word of the buffer as contextual tokens.
+
+%We used the Brown cluster mapping computed by \citet{liang:05}.
+%\footnote{\url{http://www.metaoptimize.com/projects/wordreps}}
+%We follow \citet{honnibal:14}
+%in using 4- and 6-bit prefixes of the clusters in our feature templates, as
+%initially suggested by \citet{koo:10}.
+
+\subsection{CRF Baseline}
+\label{sec:crf}
+
+To evaluate our joint model, we prepared a sequence-based segmentation system,
+following the approach of \citet{liu:05}.  We used the \textsc{crf} implementation
+provided by the Wapiti toolkit \citep{wapiti}.
+%\footnote{\url{http://wapiti.limsi.fr/}}
+The segmentation problem was modelled as a binary classification task, with
+segment-final tokens labelled 1 and all other tokens labelled 0.
+Features referred to the word, part-of-speech tag, prefix, and suffix of the
+target and surrounding tokens, as well as the previous two labelling decisions.
+Weights were learned using the \textsc{l-bfgs} algorithm,
+with an elastic-net penalty tuned on the development data.  The pattern file,
+which describes the exact feature-templates, is attached in the supporting
+materials.
+
+\section{Results}
+\label{sec:results}
+
 \begin{table}
     \centering
     \small
     \begin{tabular}{l|rrr}
         System & \textsc{uas} & \textsc{las} & Seg. \\
         \hline \hline
-        S+D+P (Arc-to-Root) & 87.7 & 96.2 \\
-        S+D+P (Break) & 87.6 & 96.2 \\
+        S+D+P (Arc-to-Root) & 87.7 & & 96.2 \\
+        S+D+P (Break) & 87.6 & & 96.2 \\
         \hline
-        S (CRF) $\rightarrow$ D+P & 86.1 & 96.8 \\
-        S (Gold) $\rightarrow$ D+P & 90.5 & 100 \\
+        S (CRF) $\rightarrow$ D+P & 86.1 & & 96.8 \\
+        S (Gold) $\rightarrow$ D+P & 90.5 & & 100 \\
         \hline
     \end{tabular}
     \caption{\small Unlabelled and labelled (parse) attachment scores on the
@@ -701,6 +745,7 @@ Pattern file attached in supporting materials.
 
 \begin{table}
     \centering
+    \small
     \begin{tabular}{l|rrr}
         System & UAS & Disfl. $F$ & Seg. \\
         \hline \hline
@@ -708,45 +753,44 @@ Pattern file attached in supporting materials.
         S (CRF) $\rightarrow$ D+P & 86.1 & 76.3 & 96.8 \\
         \hline
     \end{tabular}
-    \caption{Final evaluation scores.}
+    \caption{\small Final evaluation scores.}
+    \vspace*{-4em}
 \end{table}
 
 \subsection{Disfluencies and Segmentation}
 
-The Segment (Gold) $\rightarrow$ Parse system used gold-standard segment boundaries,
+The \textbf{S (Gold) $\rightarrow$ D+P} system used gold-standard segment boundaries,
 before joint parsing and disfluency detection.  This is the experimental
-set-up described by Honnibal and Johnson (2014).  Our system achieves similar
+set-up of \citet{honnibal:14}.  Our system achieves similar
 accuracy to what they report.
 
-Disfluency detection accuracy is substantially lower for all of the systems when
+Disfluency detection accuracy is substantially lower for all systems when
 gold-standard segment boundaries are not available.  This could indicate that
 the system's disfluency accuracy is highly sensitive to parse quality, which
 is reduced when gold-standard segment boundaries are not available.
-
 To investigate this, we trained and evaluated the \citet{qian:13} disfluency
 detection system on unsegmented input.  This system uses a cascade of
 sequence-tagging models, and does not predict any syntactic information beyond
-part-of-speech tags.
-
+\textsc{pos} tags.
 We found that the \citeauthor{qian:13} system's disfluency $F$-measure dropped
 from 83.9\% to 77\% when gold-standard segment boundaries were not available.
 This suggests to us that segment boundaries are highly informative
 for disfluency detection, which is why our system experiences a similar drop
 in accuracy when gold-standard segment boundaries are not available.
 
+\subsection{Segmentation and Parsing Accuracy}
 
-\clearpage
+\subsection{Choice of Segmentation Strategy}
+
+\subsection{Comparison with CRF Pipeline}
 
 \section{Analysis}
 
-\clearpage
 
 \section{Related Work}
 
-\newpage
 \section{Conclusion}
 
-\newpage
 
 \bibliography{main}
 \bibliographystyle{aclnat}
