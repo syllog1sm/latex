@@ -496,16 +496,14 @@ added by these moves are shown with dashed lines.\label{fig:left_state}}
 \end{figure}
 
 We now describe two ways of encoding utterance segmentation decisions into the
-parser's transition system. 
+parser's transition system.  In the first strategy, the segmentation is determined
+from the parse structure; in the second strategy, a distinct transition, Break,
+is added to the transition system to insert segment boundaries.
 The two strategies are evaluated in Section \ref{sec:results}.
 We find that despite being quite different, the two strategies achieve similar
-performance, and both substantially out-perform the pipeline approach described
-in Section \ref{sec:crf}.  These results suggest that the details of how the
-segmentation decisions are encoded into the transition system are less
-important than the fact that the decisions are made during parsing, instead of
-as a pre-process.
+performance.
 
-\subsection{Strategy 1: Arc-from-Root}
+\subsection{Strategy 1: Implicit segmentation}
 
 The first strategy we present uses the Left-Arc to attach each segment-governor
 to the \textsc{root} symbol, which we place at the end of the input.
@@ -525,7 +523,7 @@ In the second state, the correct decision is \textbf{Right-Arc}, because
 so delaying them until the potential left and right heads can be compared in the
 same state may be advantageous.
 
-\subsection{Strategy 2: the Break Transition}
+\subsection{Strategy 2: Explicit Break transition}
 
 \begin{figure}
 \begin{dependency}[theme=simple, edge unit distance=1.0ex]
@@ -697,10 +695,11 @@ following the approach of \citet{liu:05}.  We used the \textsc{crf} implementati
 provided by the Wapiti toolkit \citep{wapiti}.
 %\footnote{\url{http://wapiti.limsi.fr/}}
 The segmentation problem was modelled as a binary classification task, with
-segment-initial\footnote{We
-found segment-initial encoding slightly better, due to the high frequency of
-conjunctions at the start of segments.}
-    tokens labelled 1 and all other tokens labelled 0.
+segment-initial
+%\footnote{We
+%found segment-initial encoding slightly better, due to the high frequency of
+%conjunctions at the start of segments.}
+tokens labelled 1 and all other tokens labelled 0.
 Features referred to the word, part-of-speech tag, prefix, and suffix of the
 target and surrounding tokens, as well as the previous two labelling decisions.
 Weights were learned using the \textsc{l-bfgs} algorithm,
@@ -708,9 +707,8 @@ with an elastic-net penalty tuned on the development data.  The pattern file,
 which describes the exact feature-templates, is attached in the supporting
 materials.
 
-\newpage
-
 \section{Results}
+
 \label{sec:results}
 
 \begin{table}
@@ -728,24 +726,25 @@ materials.
     \end{tabular}
     \caption{\small Segmentation evaluation on the development set, for
     the CRF model and our joint approaches.\label{tab:sbd_eval}}
+    \vspace*{-4em}
 \end{table}
 
 \subsection{Segmentation Accuracy}
 
-We evaluate segmentation accuracy as a binary classification task, where each
-word is assigned a label
-indicating whether it is the first word in a segment.  The \textbf{CRF}
-model learns these labels explicitly.  The \textbf{Joint (explicit)} model
-learns to insert segment boundaries as part of the transition system. In
-the \textbf{Joint (implicit)} model, the segmentation is derived deterministically
-from the predicted dependency analysis.
-Our segmentation evaluation excludes disfluent words.  When a disfluent word
-begins a segment, we move its segment label back to the first fluent word.
-
 Table \ref{tab:sbd_eval} compares the per-token segmentation accuracy of the
 three systems, along with the precision, recall and $F$-measure on boundary
 words.  Low recall indicates under-segmentation, while low precision indicates
-over-segmentation.
+over-segmentation.  Our segmentation evaluation excludes disfluent words.  When
+a disfluent word begins a segment, we move its segment label back to the first
+fluent word.
+
+%We evaluate segmentation accuracy as a binary classification task, where each
+%word is assigned a label
+%indicating whether it is the first word in a segment.  The \textbf{CRF}
+%model learns these labels explicitly.  The \textbf{Joint (explicit)} model
+%learns to insert segment boundaries as part of the transition system. In
+%the \textbf{Joint (implicit)} model, the segmentation is derived deterministically
+%from the predicted dependency analysis.
 
 The two syntactic systems achieve equivalent accuracy, with similar precision/recall
 bias.  The CRF system uses trigram word and POS-tag features; information that
@@ -772,21 +771,36 @@ CRF system's score.
     \caption{\small Speech-repair disfluency detection precision, recall and
         F-measure on the development data.
          \label{tab:dfl}}
-        %\textbf{Joint (S+D+P)}=Joint segmentation, disfluency detection
-        %and parsing with the Arc-to-Root strategy.
-        %\textbf{S (CRF) $\rightarrow$ D+P}=CRF segmentation, followed by joint
-        %disfluency detection and parsing.
-        %\textbf{Q\&L}=The Qian and Liu (2013)
-        %disfluency detection system, on unsegmented input.
-        %\textbf{S (Gold) $\rightarrow$ Q\&L} The Qian and Liu (2013) disfluency
-        %detection system, on input with gold-standard segmentation.
-        %\textbf{S (Gold) $\rightarrow$ D+P} Joint disfluency detection and parsing,
-        %     on input with gold-standard segmentation.
-%\vspace*{-4em}
+\vspace*{-4em}
 \end{table}
 
+Table \ref{tab:dfl} shows the accuracy of the systems at detecting speech-repair
+disfluencies.  We first follow previous work in evaluating our model given
+gold-standard segment boundaries.  The system achieves 84.1\% $F$-measure
+on this evaluation, comparable to the current state-of-the-art.
 
-%\textbf{Gold segmentation.}
+When segment boundaries were predicted before parsing
+(\textbf{CRF $\rightarrow$ Parser}), precision dropped from 92.4\% to 82.8\%,
+with a much smaller reduction in recall.
+It may be that segmentation errors lead to ungrammatical input, which the parser
+mistakes for disfluencies.
+
+Disfluency detection accuracy is substantially lower for all systems when
+gold-standard segment boundaries are not available.  This could indicate that
+the system's disfluency accuracy is highly sensitive to parse quality, which
+is reduced when gold-standard segment boundaries are not available.
+To investigate this, we trained and evaluated the \citet{qian:13} disfluency
+detection system on unsegmented input.  This system uses a cascade of
+sequence-tagging models, and does not predict any syntactic information beyond
+\textsc{pos} tags.
+We found that the \citeauthor{qian:13} system's disfluency $F$-measure dropped
+from 83.9\% to 77\% when gold-standard segment boundaries were not available.
+This suggests to us that segment boundaries are highly informative
+for disfluency detection, which is why our system experiences a similar drop
+in accuracy when gold-standard segment boundaries are not available.
+
+
+
 %We first compare our model to previous disfluency detection systems on the
 %Switchboard development data, using gold-standard segmentation.  The model
 %performs similarly to the state-of-the-art \citet{honnibal:14} system it is based
@@ -889,21 +903,6 @@ CRF system's score.
 %before joint parsing and disfluency detection.  This is the experimental
 %set-up of \citet{honnibal:14}.  Our system achieves similar
 %accuracy to what they report.
-
-%Disfluency detection accuracy is substantially lower for all systems when
-%gold-standard segment boundaries are not available.  This could indicate that
-%the system's disfluency accuracy is highly sensitive to parse quality, which
-%is reduced when gold-standard segment boundaries are not available.
-%To investigate this, we trained and evaluated the \citet{qian:13} disfluency
-%detection system on unsegmented input.  This system uses a cascade of
-%sequence-tagging models, and does not predict any syntactic information beyond
-%\textsc{pos} tags.
-%We found that the \citeauthor{qian:13} system's disfluency $F$-measure dropped
-%from 83.9\% to 77\% when gold-standard segment boundaries were not available.
-%This suggests to us that segment boundaries are highly informative
-%for disfluency detection, which is why our system experiences a similar drop
-%in accuracy when gold-standard segment boundaries are not available.
-
 
 %TODO: Gold-standard disfluency, predicted segmentation
 
