@@ -99,14 +99,17 @@
 \begin{document}
 \maketitle
 \begin{abstract}
-We present a joint transition-based model of segmentation, disfluency detection
-and dependency parsing for conversational speech.  We evaluate two ways of encoding
-the segmentation decisions into the transition system, and compare against a pipeline
-approach, where the input is segmented with a \textsc{crf} model before parsing.
-On disfluency detection, the model out-performs the \textsc{crf} pipeline and the
-best stand-alone system.
-On the parsing evaluation, the joint model achieves 87.6\% \textsc{uas}, 1.5\%
-better than the \textsc{crf}-based pipeline.
+Conversational speech turns are often long, motivating the use of a segmentation
+model to pre-process the input into shorter units.  We instead propose a
+transition-based model that processes entire turns, jointly performing dependency
+parsing and disfluency detection.  Segment boundaries can then be recovered
+from the syntactic structure if they are required.
+
+We compare the system against a pipeline approach, where the input is segmented
+with a \textsc{crf} model before parsing.  The joint model improves both parsing
+and segmentation accuracy.
+Its key advantage is in avoiding error-propagation problems.  It achieves 88.1\%
+parse accuracy, a 1.9\% improvement over the pipeline approach.
 \end{abstract}
 
 % P1
@@ -140,27 +143,29 @@ While the length of these turns makes conventional $O(n^3)$ parsing algorithms
 impractical, incremental transition-based parsers now achieve high accuracy,
 while running in time linear in the length of the input string.
 
-We compared two ways of encoding the segmentation decisions into the transition
-system against a standard pipeline approach, which used a \textsc{crf} model
-to segment the input prior to parsing.  Our model is based on the system described
+We tried two ways of parsing the unsegmented inputs.  Our first approach introduced
+a new transition, Break, to explicitly predict segment boundaries during parsing.
+The second approach leaves the segmentation implicit until
+parsing is complete, at which point the boundaries can be read-off from the
+predicted parse.  Our results slightly favour the second approach.
+
+Our model is based on the system described
 by \citet{honnibal:14}, who showed that a joint model of disfluency detection
 and parsing produced state-of-the-art accuracy on both tasks.
 Their experiments follow most previous work in using gold-standard segment boundaries.
 In that condition, our model achieved similar parsing and disfluency
-detection results: 90.5\% \textsc{uas}, and 84.1\% $F$-measure.
+detection results: 90.9\% \textsc{uas}, and 84.1\% $F$-measure.
 We then repeated the experiment with \textsc{crf}-predicted segmentation,
-and found that accuracy dropped to 86.1\% and 76\%.
-To test whether the syntactic model was particularly sensitive to segmentation,
-we trained and evaluated the \citet{qian:13} \textsc{m3n} disfluency tagger on
-unsegmented input, and found that its accuracy dropped by a similar amount.
+and found the scores dropped to 86.2\% and 77.9\%.
+%To test whether the syntactic model was particularly sensitive to segmentation,
+%we trained and evaluated the \citet{qian:13} \textsc{m3n} disfluency tagger on
+%unsegmented input, and found that its accuracy dropped by a similar amount.
 
 We then compared the pipeline approach against our two joint models.
-Despite slightly lower segmentation accuracy,
-the best joint
-model achieves 87.6\% parse accuracy, substantially higher than the 86.1\%
-accuracy of the pipeline approach.
-The two joint models performed similarly, indicating that a variety of 
-transition-system encoding strategies could be equally successful.
+The best joint model achieves 88.1\% parse accuracy, a 1.9\% improvement over
+the pipeline approach, with similar accuracy at disfluency detection.  The
+system is also highly efficient, processing over 900 tokens per second at
+state-of-the-art accuracies.
 
 
 \section{Spoken Language Understanding}
@@ -186,7 +191,7 @@ it identifies speech-repairs, marked \emph{reparandum} above.
 \hline
 Disfluency type & Example & Freq. \\
 \hline \hline
-Reparanda & \emph{to } \textbf{Boston} \emph{uh Denver} & 32,310 \\
+Speech-repair & \emph{to } \textbf{Boston} \emph{uh Denver} & 32,310 \\
 Filled pauses    & \textbf{um}, \textbf{uh} & 20,502 \\
 Edit terms & \textbf{I mean} & 3,447 \\ 
 Discourse  & \textbf{well}, \textbf{you know} & 21,412  \\
@@ -588,14 +593,14 @@ to the second word on the stack, and $\mathbf{G}(d)=h$ asserts that an arc from 
 to $d$ is in the gold-standard:
 
 \begin{enumerate}
-    \item If the stack is empty, S is the only gold-standard action;
-    \item If $\mathbf{G}(\sigma_0)=\sigma_1$, S is a gold-standard action; 
+    \item If the stack is empty, S is the only gold action;
+    \item If $\mathbf{G}(\sigma_0)=\sigma_1$, S is a gold action; 
     \item If there are any other arcs between $\beta_0$ and the stack, Shift is 
           not a gold-standard action;
-      \item If $\mathbf{G}(\sigma_0)=\sigma_1$, R is a gold-standard action;
-      \item If $\mathbf{G}(\sigma_0)=\beta_0$, L is a gold-standard action;
+      \item If $\mathbf{G}(\sigma_0)=\sigma_1$, R is a gold action;
+      \item If $\mathbf{G}(\sigma_0)=\beta_0$, L is a gold action;
     \item If there are any other arcs between $\sigma_0$ and the buffer, neither
-          L nor R are gold-standard actions.
+          L nor R are gold actions.
 \end{enumerate}
 
 \noindent The \citet{honnibal:14} Edit transition adds the following rules to the oracle
@@ -603,15 +608,15 @@ above. Recall that $\mathbf{G}(d)=d$ asserts that a word $d$ is disfluent in the
 gold-standard:
 
 \begin{enumerate}
-    \item If $\mathbf{G}(\sigma_0) = \sigma_0$, E is a gold-standard action;
-    \item If $\mathbf{G}(\sigma_0) \not= \sigma_0$, E is not a gold-standard action;
-    \item If $\mathbf{G}(\beta_0) = \beta_0$, both L and S are gold-standard actions;
+    \item If $\mathbf{G}(\sigma_0) = \sigma_0$, E is a gold action;
+    \item If $\mathbf{G}(\sigma_0) \not= \sigma_0$, E is not a gold action;
+    \item If $\mathbf{G}(\beta_0) = \beta_0$, both L and S are gold actions;
     \item If $\mathbf{G}(\sigma_1)= \sigma_1$ and $\mathbf{G}(\sigma_0) = \sigma_0$, R
-        is a gold-standard action;
+        is a gold action;
     \item If $\mathbf{G}(\sigma_0) = \sigma_0$ but $\mathbf{G}(\beta_0) \not= \beta_0$,
-          L is not a gold-standard action;
+          L is not a gold action;
       \item If $\mathbf{G}(\sigma_0) = \sigma_0$ but $\mathbf{G}(\sigma_1) \not= \sigma_1$,
-          R is not a gold-standard action.
+          R is not a gold action.
 \end{enumerate}
 
 \noindent In Strategy 1 (Arc-from-Root), the segment boundaries are inserted
@@ -662,40 +667,6 @@ and the beam-width, which controls a speed/accuracy trade-off.  We found that
 only small accuracy improvements were obtained with beams wider than 8, and follow
 \citet{honnibal:14} in using 15 training iterations.  
 
-\begin{table}
-    \centering
-    \small
-    \begin{tabular}{l|rrr}
-               & \multicolumn{3}{c}{Disfluency} \\
-        System & $P$ & $R$ & $F$ \\
-        \hline \hline
-        S (Gold) $\rightarrow$ H\&J'14 & & & \\
-        S (Gold) $\rightarrow$ Q\&L'13 & & & 83.4 \\
-        S (Gold) $\rightarrow$ D+P & 94.2 & 76.5 & 84.4 \\
-        \hline
-        Q\&L  & & & 78.2 \\
-        \hline
-        Joint (S+D+P) & 89.4 & 67.0 & 77.0 \\
-        S (CRF) $\rightarrow$ D+P & 79.5 & 73.4 & 76.3 \\
-        \hline
-        %S+D+P (Break) & 88.2 & 68.4 & 76.5 \\
-        %\hline
-   \end{tabular}
-    \caption{\small Speech-repair disfluency detection precision, recall and
-        F-measure on the development data.
-        \textbf{Joint (S+D+P)}=Joint segmentation, disfluency detection
-        and parsing with the Arc-to-Root strategy.
-        \textbf{S (CRF) $\rightarrow$ D+P}=CRF segmentation, followed by joint
-        disfluency detection and parsing.
-        \textbf{Q\&L}=The Qian and Liu (2013)
-        disfluency detection system, on unsegmented input.
-        \textbf{S (Gold) $\rightarrow$ Q\&L} The Qian and Liu (2013) disfluency
-        detection system, on input with gold-standard segmentation.
-        \textbf{S (Gold) $\rightarrow$ D+P} Joint disfluency detection and parsing,
-             on input with gold-standard segmentation. \label{tab:dfl}}
-\vspace*{-4em}
-\end{table}
-
 \subsection{Features}
 
 We base our feature set on the arc-hybrid features used by
@@ -726,7 +697,10 @@ following the approach of \citet{liu:05}.  We used the \textsc{crf} implementati
 provided by the Wapiti toolkit \citep{wapiti}.
 %\footnote{\url{http://wapiti.limsi.fr/}}
 The segmentation problem was modelled as a binary classification task, with
-segment-final tokens labelled 1 and all other tokens labelled 0.
+segment-initial\footnote{We
+found segment-initial encoding slightly better, due to the high frequency of
+conjunctions at the start of segments.}
+    tokens labelled 1 and all other tokens labelled 0.
 Features referred to the word, part-of-speech tag, prefix, and suffix of the
 target and surrounding tokens, as well as the previous two labelling decisions.
 Weights were learned using the \textsc{l-bfgs} algorithm,
@@ -734,89 +708,144 @@ with an elastic-net penalty tuned on the development data.  The pattern file,
 which describes the exact feature-templates, is attached in the supporting
 materials.
 
+\newpage
+
+\section{Results}
+\label{sec:results}
+
 \begin{table}
     \centering
     \small
-    \begin{tabular}{l|rr | rrr | r}
-        System & \multicolumn{2}{c|}{Parsing} & \multicolumn{3}{c|}{Disfluency} & Seg. \\
-               & \textsc{las} & \textsc{uas}  & $P$ & $R$ & $F$                 & Acc. \\
-        \hline \hline
-
-        Arc-to-Root &      & 87.7 & 89.4 & 67.0 & 77.0 & 96.2 \\
-        Break       &      & 87.6 & 88.2 & 68.4 & 76.5 & 96.2 \\
+    \begin{tabular}{l|rrrr}
+        \hline
+               & \multicolumn{3}{c}{Segmentation} \\
+               & Acc. & $P$ & $R$ & $F$ \\
+        \hline
+        CRF              & 96.6 & 87.4 & 78.0 & 82.4 \\
+        Joint (explicit) & 96.9 & 84.0 & 85.9 & 84.9 \\
+        Joint (implicit) & 96.9 & 83.9 & 86.2 & 85.0 \\
         \hline
     \end{tabular}
-    \caption{\small Comparison of the two strategies for encoding the
-    segmentation decisions into the transition system.}
+    \caption{\small Segmentation evaluation on the development set, for
+    the CRF model and our joint approaches.\label{tab:sbd_eval}}
 \end{table}
 
-\section{Development Results}
+\subsection{Segmentation Accuracy}
 
-\subsection{Choice of Joint Segmentation Strategy}
+We evaluate segmentation accuracy as a binary classification task, where each
+word is assigned a label
+indicating whether it is the first word in a segment.  The \textbf{CRF}
+model learns these labels explicitly.  The \textbf{Joint (explicit)} model
+learns to insert segment boundaries as part of the transition system. In
+the \textbf{Joint (implicit)} model, the segmentation is derived deterministically
+from the predicted dependency analysis.
+Our segmentation evaluation excludes disfluent words.  When a disfluent word
+begins a segment, we move its segment label back to the first fluent word.
 
-\subsection{Disfluency Detection Results}
-\label{sec:results}
+Table \ref{tab:sbd_eval} compares the per-token segmentation accuracy of the
+three systems, along with the precision, recall and $F$-measure on boundary
+words.  Low recall indicates under-segmentation, while low precision indicates
+over-segmentation.
 
-\textbf{Gold segmentation.}
-We first compare our model to previous disfluency detection systems on the
-Switchboard development data, using gold-standard segmentation.  The model
-performs similarly to the state-of-the-art \citet{honnibal:14} system it is based
-on, demonstrating that our adoption of the arc-hybrid transition system did not
-affect accuracy. Both systems perform slightly better than the \citet{qian:13}
-sequence-based model.
+The two syntactic systems achieve equivalent accuracy, with similar precision/recall
+bias.  The CRF system uses trigram word and POS-tag features; information that
+is easy to capture in the transition-based parsing models.  The parsers also
+have access to long-range syntactic features, giving them an accuracy advantage.
+The syntactic models achieve 96.8\% accuracy, an 11\% error reduction over the
+CRF system's score.
 
-\textbf{Unsegmented.}
-We next trained and evaluated the \citet{qian:13} model on unsegmented text.
-The gold-standard segment boundaries turn out to be surprisingly informative
-for the disfluency detection task: without them, accuracy drops from 83.4\% to
-78.2\%.
-
-The drop in accuracy of the \citet{qian:13} system is important context
-for the performance of the joint model on unsegmented text, which see
-a similar drop in accuracy.  Without the Yang and Liu result, it would seem
-that the lack of segmentation disrupted the parse accuracy of the joint model,
-causing its loss of disfluency accuracy.  However, it seems that the gold-standard
-segment boundaries were of direct benefit for disfluency detection.
-
-\textbf{CRF segmentation.} 
-Finally, we compare the fully joint model to a pipeline system, where the input
-is pre-segmented using the \textsc{crf} model described in Section \ref{sec:crf}.
-This system achieved 76.3\% accuracy, slightly below the accuracy of the fully
-joint model.
-
-\subsection{Parsing Results}
-
-\textbf{Gold segmentation, gold disfluency detection.}
-We first establish the accuracy of the system with oracle segmentation and
-disfluency detection prior to parsing.  In this condition, the model achieves
-TODO\% \textsc{uas}, similar to the result reported by \citet{honnibal:14}.
-
-\textbf{Gold segmentation, joint disfluency detection.} We then evaluated the
-system using oracle segmentation, but using the Edit transition to do joint
-disfluency detection and parsing.  Again,  results were similar to those reported
-by \citet{honnibal:14}.
-
-\textbf{Unsegmented.}
-
-\textbf{Unsegmented, gold disfluency detection.}  We then trained and evaluated
-the parser on unsegmented input, with disfluencies removed using the gold-standard
-annotation.  The purpose of this experiment was to investigate how much of the
-drop in parse accuracy from unsegmented input was due to the increased difficulty
-of the disfluency detection task.
-
-\textbf{CRF segmentation.}
+\subsection{Disfluency Detection Accuracy}
 
 \begin{table}
     \centering
     \small
     \begin{tabular}{l|rrr}
-        System & \textsc{uas} & \textsc{las} & Seg. \\
+               & \multicolumn{3}{c}{Disfluency} \\
+        System & $P$ & $R$ & $F$ \\
         \hline \hline
-        S+D+P (Arc-to-Root) & 87.7 & & 96.2 \\
-        S+D+P (Break) & 87.6 & & 96.2 \\
+        Gold $\rightarrow$ Parser & 92.4 & 76.8 & 84.1 \\
+        CRF $\rightarrow$ Parser  & 82.8 & 73.5 & 77.9 \\
+        Joint (explicit)          & 88.6 & 68.9 & 77.5 \\
+        Joint (implicit)          & 88.3 & 68.9 & 77.4 \\
         \hline
-        S (CRF) $\rightarrow$ D+P & 86.1 & & 96.8 \\
-        S (Gold) $\rightarrow$ D+P & 90.5 & & 100 \\
+   \end{tabular}
+    \caption{\small Speech-repair disfluency detection precision, recall and
+        F-measure on the development data.
+         \label{tab:dfl}}
+        %\textbf{Joint (S+D+P)}=Joint segmentation, disfluency detection
+        %and parsing with the Arc-to-Root strategy.
+        %\textbf{S (CRF) $\rightarrow$ D+P}=CRF segmentation, followed by joint
+        %disfluency detection and parsing.
+        %\textbf{Q\&L}=The Qian and Liu (2013)
+        %disfluency detection system, on unsegmented input.
+        %\textbf{S (Gold) $\rightarrow$ Q\&L} The Qian and Liu (2013) disfluency
+        %detection system, on input with gold-standard segmentation.
+        %\textbf{S (Gold) $\rightarrow$ D+P} Joint disfluency detection and parsing,
+        %     on input with gold-standard segmentation.
+%\vspace*{-4em}
+\end{table}
+
+
+%\textbf{Gold segmentation.}
+%We first compare our model to previous disfluency detection systems on the
+%Switchboard development data, using gold-standard segmentation.  The model
+%performs similarly to the state-of-the-art \citet{honnibal:14} system it is based
+%on, demonstrating that our adoption of the arc-hybrid transition system did not
+%affect accuracy. Both systems perform slightly better than the \citet{qian:13}
+%sequence-based model.
+%
+%\textbf{Unsegmented.}
+%We next trained and evaluated the \citet{qian:13} model on unsegmented text.
+%The gold-standard segment boundaries turn out to be surprisingly informative
+%for the disfluency detection task: without them, accuracy drops from 83.4\% to
+%78.2\%.
+%
+%The drop in accuracy of the \citet{qian:13} system is important context
+%for the performance of the joint model on unsegmented text, which see
+%a similar drop in accuracy.  Without the Yang and Liu result, it would seem
+%that the lack of segmentation disrupted the parse accuracy of the joint model,
+%causing its loss of disfluency accuracy.  However, it seems that the gold-standard
+%segment boundaries were of direct benefit for disfluency detection.
+%
+%\textbf{CRF segmentation.} 
+%Finally, we compare the fully joint model to a pipeline system, where the input
+%is pre-segmented using the \textsc{crf} model described in Section \ref{sec:crf}.
+%This system achieved 76.3\% accuracy, slightly below the accuracy of the fully
+%joint model.
+%
+\subsection{Parsing Accuracy}
+
+%\textbf{Gold segmentation, gold disfluency detection.}
+%We first establish the accuracy of the system with oracle segmentation and
+%disfluency detection prior to parsing.  In this condition, the model achieves
+%TODO\% \textsc{uas}, similar to the result reported by \citet{honnibal:14}.
+%
+%\textbf{Gold segmentation, joint disfluency detection.} We then evaluated the
+%system using oracle segmentation, but using the Edit transition to do joint
+%disfluency detection and parsing.  Again,  results were similar to those reported
+%by \citet{honnibal:14}.
+%
+%\textbf{Unsegmented.}
+%
+%\textbf{Unsegmented, gold disfluency detection.}  We then trained and evaluated
+%the parser on unsegmented input, with disfluencies removed using the gold-standard
+%annotation.  The purpose of this experiment was to investigate how much of the
+%drop in parse accuracy from unsegmented input was due to the increased difficulty
+%of the disfluency detection task.
+%
+%\textbf{CRF segmentation.}
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr}
+        \hline
+        System & \textsc{uas} & \textsc{las} \\
+        \hline \hline
+        Gold $\rightarrow$ Parser & 90.9 & 88.0 \\
+        CRF $\rightarrow$  Parser & 86.2 & 83.5 \\
+        Joint (explicit)          & 87.9 & 85.1 \\
+        Joint (implicit)          & 88.1 & 85.3 \\
         \hline
     \end{tabular}
     \caption{\small Unlabelled and labelled (parse) attachment scores on the
@@ -827,18 +856,21 @@ of the disfluency detection task.
 \end{table}
 
 
+
 \begin{table}
     \centering
     \small
     \begin{tabular}{l|rrr}
+        \hline
         System & UAS & Disfl. $F$ & Seg. \\
         \hline \hline
-        Joint (Arc-to-Root) & 87.7 & 76.6 & 96.2 \\
-        S (CRF) $\rightarrow$ D+P & 86.1 & 76.3 & 96.8 \\
+        CRF $\rightarrow$ Parser &      &      &  \\
+        Joint (explicit)         &      &      &  \\
+        Joint (implicit)         & \\
         \hline
     \end{tabular}
     \caption{\small Final evaluation scores.}
-    \vspace*{-4em}
+    %\vspace*{-4em}
 \end{table}
 
 %\subsection{Disfluencies and Segmentation}
@@ -875,9 +907,7 @@ of the disfluency detection task.
 
 %TODO: Gold-standard disfluency, predicted segmentation
 
-\section{Final Evaluation}
-
-\section{Analysis}
+\subsection{Final Evaluation}
 
 
 \section{Related Work}
