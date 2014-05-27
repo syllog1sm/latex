@@ -662,14 +662,14 @@ and TODO for disfluency $F$-measure.
 
 The main hyper-parameters of our model are the number of training iterations,
 and the beam-width, which controls a speed/accuracy trade-off.  We found that
-only small accuracy improvements were obtained with beams wider than 8, and follow
+only small accuracy improvements were obtained with beams wider than 8. We set
+the beam-width to 12 for all of our experiments, and follow
 \citet{honnibal:14} in using 15 training iterations.  
 
 \subsection{Features}
 
 We base our feature set on the arc-hybrid features used by
 \citet{goldberg:13},
-%\footnote{\url{http://bitbucket.org/yoavgo/tacl2013dynamicoracles/src/efc0b61c4f45331bf887dd26580465964014c28f/lefttoright/features/extractors.py?at=default}},
 with the additional disfluency features used by \citet{honnibal:14}.  The
 specific feature templates used are provided in the supplementary materials.
 
@@ -680,14 +680,37 @@ right subtree of the top word of the stack, the first three words of the buffer,
 and the left subtree of the first word of the buffer.  Additionally, we follow
 \citet{honnibal:14} in using the leftmost and rightmost edge of the top word
 of the stack and the first word of the buffer as contextual tokens.
+We used the Brown cluster mapping computed by \citet{liang:05}.
+We follow \citet{honnibal:14}
+in using 4- and 6-bit prefixes of the clusters in our feature templates, as
+initially suggested by \citet{koo:10}.
 
-%We used the Brown cluster mapping computed by \citet{liang:05}.
-%\footnote{\url{http://www.metaoptimize.com/projects/wordreps}}
-%We follow \citet{honnibal:14}
-%in using 4- and 6-bit prefixes of the clusters in our feature templates, as
-%initially suggested by \citet{koo:10}.
+\subsection{Qian and Liu (2013) Disfluency Detector}
 
-\subsection{CRF Baseline}
+Our parser performs disfluency detection jointly during parsing, using the Edit
+transition described by \citet{honnibal:14}.  For comparison, we also trained
+and evaluated the disfluency detection system of \citet{qian:13} on both
+segmented and unsegmented input.
+
+The \citet{qian:13} system uses a cascade of \textsc{m3n} sequence-tagging
+models.  The first pass detects filler-words, the next pass uses the filler-word
+predictions as features, and two subsequent passes detect disfluencies.
+The system is a good comparison point because it achieves
+equivalent, state-of-the-art accuracy to the \citet{honnibal:14} system,
+with a very different algorithm.
+
+Because the system does not require syntactically-annotated training data, it
+can be trained from the \textsc{dps} files, which make more training data
+available than the syntactically-annotated \textsc{mrg} files.  
+
+To promote direct comparison, we trained the system from the \textsc{mrg}
+annotations, and followed the syntactic disfluency annotations (i.e., words
+were marked disfluent if they were part of the yield of an \textsc{edited} node).
+Interestingly, this resulted in slightly higher accuracy than 
+\citet{qian:13} report.  It seems that the \textsc{mrg} annotated speech repairs
+are easier to detect than the \textsc{dps} annotations.
+
+\subsection{CRF Segmenter}
 \label{sec:crf}
 
 To evaluate our joint model, we prepared a sequence-based segmentation system,
@@ -707,7 +730,7 @@ with an elastic-net penalty tuned on the development data.  The pattern file,
 which describes the exact feature-templates, is attached in the supporting
 materials.
 
-\section{Results}
+\section{Development Results}
 
 \label{sec:results}
 
@@ -726,16 +749,16 @@ materials.
     \end{tabular}
     \caption{\small Segmentation evaluation on the development set, for
     the CRF model and our joint approaches.\label{tab:sbd_eval}}
-    \vspace*{-4em}
+    %\vspace*{-5em}
 \end{table}
 
 \subsection{Segmentation Accuracy}
 
 Table \ref{tab:sbd_eval} compares the per-token segmentation accuracy of the
-three systems, along with the precision, recall and $F$-measure on boundary
-words.  Low recall indicates under-segmentation, while low precision indicates
-over-segmentation.  Our segmentation evaluation excludes disfluent words.  When
-a disfluent word begins a segment, we move its segment label back to the first
+three systems, along with their precision, recall and $F$-measure at identifying
+segment-initial words.  Low recall indicates under-segmentation, while low precision
+indicates over-segmentation.  Our segmentation evaluation excludes disfluent words.
+When a disfluent word begins a segment, we move its segment label back to the first
 fluent word.
 
 %We evaluate segmentation accuracy as a binary classification task, where each
@@ -747,31 +770,30 @@ fluent word.
 %from the predicted dependency analysis.
 
 The two syntactic systems achieve equivalent accuracy, with similar precision/recall
-bias.  The CRF system uses trigram word and POS-tag features; information that
-is easy to capture in the transition-based parsing models.  The parsers also
-have access to long-range syntactic features, giving them an accuracy advantage.
-The syntactic models achieve 96.8\% accuracy, an 11\% error reduction over the
-CRF system's score.
+bias.  Because the parser is incremental, it is easy to capture the information
+available to the \textsc{crf} system, with the added advantage of long-range
+syntactic features.  This gives the parsing models a small accuracy advantage
+over the \textsc{crf}.
 
 \subsection{Disfluency Detection Accuracy}
 
 \begin{table}
     \centering
     \small
-    \begin{tabular}{l|rrr}
-               & \multicolumn{3}{c}{Disfluency} \\
-        System & $P$ & $R$ & $F$ \\
+    \begin{tabular}{l|rrr|rrr}
+        & \multicolumn{3}{c|}{Segmented}  & \multicolumn{3}{c}{Unsegmented} \\
+        System & $P$ & $R$ & $F$ & $P$ & $R$ & $F$ \\
         \hline \hline
-        Gold $\rightarrow$ Parser & 92.4 & 76.8 & 84.1 \\
-        CRF $\rightarrow$ Parser  & 82.8 & 73.5 & 77.9 \\
-        Joint (explicit)          & 88.6 & 68.9 & 77.5 \\
-        Joint (implicit)          & 88.3 & 68.9 & 77.4 \\
+        Qian \& Liu '13         & 90.6 & 80.7 & 85.3 &      &      &     \\
+        Pipeline                & 92.4 & 76.8  & 84.1 & 81.9 & 73.6 & 77.6 \\ 
+        Joint (explicit)        & \multicolumn{3}{c|}{n/a} & 88.6 & 68.9 & 77.6 \\
+        Joint (implicit)        & \multicolumn{3}{c|}{n/a} & 88.3 & 68.9 & 77.4 \\
         \hline
    \end{tabular}
-    \caption{\small Speech-repair disfluency detection precision, recall and
-        F-measure on the development data.
+    \caption{\small Disfluency detection evaluation on the development set,
+             with and without gold segment boundaries on the input.
          \label{tab:dfl}}
-\vspace*{-4em}
+%\vspace*{-5em}
 \end{table}
 
 Table \ref{tab:dfl} shows the accuracy of the systems at detecting speech-repair
@@ -796,9 +818,8 @@ sequence-tagging models, and does not predict any syntactic information beyond
 We found that the \citeauthor{qian:13} system's disfluency $F$-measure dropped
 from 83.9\% to 77\% when gold-standard segment boundaries were not available.
 This suggests to us that segment boundaries are highly informative
-for disfluency detection, which is why our system experiences a similar drop
-in accuracy when gold-standard segment boundaries are not available.
-
+for disfluency detection, possibly due to the higher proportion of segment-initial
+speech-repairs.
 
 
 %We first compare our model to previous disfluency detection systems on the
@@ -829,6 +850,43 @@ in accuracy when gold-standard segment boundaries are not available.
 %
 \subsection{Parsing Accuracy}
 
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr}
+        \hline
+        System & \textsc{uas} & \textsc{las} \\
+        \hline \hline
+        Gold $\rightarrow$ Parser & 90.9 & 88.0 \\
+        \hline
+        CRF $\rightarrow$  Parser & 86.2 & 83.4 \\
+        Joint (explicit)          & 87.9 & 85.1 \\
+        Joint (implicit)          & 88.1 & 85.3 \\
+        \hline
+    \end{tabular}
+    \caption{\small Unlabelled and labelled (parse) attachment scores on the
+        development data.
+        \label{tab:parse}}
+%\vspace*{-2em}
+\end{table}
+
+
+Table \ref{tab:parse} shows the labelled (\textsc{las}) and unlabelled (\textsc{uas})
+dependency accuracies of the systems, on the development data.  With gold-standard
+segmentation (\textbf{Gold $\rightarrow$ Parser}), the system achieves 90.9\%
+\textsc{uas}, similar to the result reported by \citet{honnibal:14}.  When
+the same system was given input segmented using the \textsc{crf} model described
+in Section \ref{sec:crf}, accuracy fell to 86.2\%.
+
+Both of the joint models, \textbf{Joint (explicit)} and \textbf{Joint (implicit)},
+achieve substantially higher parse accuracies than the \textsc{crf} system.
+The joint models allow the parser to segment the input while assigning the
+dependency parse, either by employing an explicit transition, or by simply
+attaching segment-governors to the root node.  The two strategies yield similar
+accuracy, with a small advantage to the implicit segmentation.
+
+\subsection{Efficiency}
+
 %\textbf{Gold segmentation, gold disfluency detection.}
 %We first establish the accuracy of the system with oracle segmentation and
 %disfluency detection prior to parsing.  In this condition, the model achieves
@@ -848,39 +906,17 @@ in accuracy when gold-standard segment boundaries are not available.
 %of the disfluency detection task.
 %
 %\textbf{CRF segmentation.}
-
 \begin{table}
     \centering
     \small
     \begin{tabular}{l|rrr}
         \hline
-        System & \textsc{uas} & \textsc{las} \\
+        System & Seg. & Disfl. & UAS \\
         \hline \hline
-        Gold $\rightarrow$ Parser & 90.9 & 88.0 \\
-        CRF $\rightarrow$  Parser & 86.2 & 83.5 \\
-        Joint (explicit)          & 87.9 & 85.1 \\
-        Joint (implicit)          & 88.1 & 85.3 \\
-        \hline
-    \end{tabular}
-    \caption{\small Unlabelled and labelled (parse) attachment scores on the
-        development data, for two joint segmentation, disfluency detection
-        and parsing systems,
-        and two systems where the input was pre-segmented.
-        \label{tab:parse}}
-\end{table}
-
-
-
-\begin{table}
-    \centering
-    \small
-    \begin{tabular}{l|rrr}
-        \hline
-        System & UAS & Disfl. $F$ & Seg. \\
-        \hline \hline
-        CRF $\rightarrow$ Parser &      &      &  \\
-        Joint (explicit)         &      &      &  \\
-        Joint (implicit)         & \\
+        Qian \& Liu '13          & ---  &      & --- \\
+        CRF $\rightarrow$ Parser & 96.7 & 76.3 & 85.9 \\
+        Joint (explicit)         & 97.3 & 76.9 & 87.8 \\
+        Joint (implicit)         & 97.2 & 76.7 & 87.9 \\
         \hline
     \end{tabular}
     \caption{\small Final evaluation scores.}
@@ -906,13 +942,28 @@ in accuracy when gold-standard segment boundaries are not available.
 
 %TODO: Gold-standard disfluency, predicted segmentation
 
-\subsection{Final Evaluation}
 
+
+\section{Final Evaluation}
+
+\newpage
 
 \section{Related Work}
 
+\begin{itemize}
+    \item \citet{honnibal:14}
+    \item \citet{rasooli:13}
+    \item Brian Roark's reranking-based segmentation system
+    \item Qian and Liu (2013) disfluency detection system
+    \item Johnson and Charniak systems
+    \item RT'04 systems
+\end{itemize}
+
+\newpage
+
 \section{Conclusion}
 
+\newpage
 
 \bibliography{main}
 \bibliographystyle{aclnat}
