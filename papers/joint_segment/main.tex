@@ -169,6 +169,7 @@ Our model is also highly efficient, processing over 900 words per second.
 
 \begin{figure}
     \begin{tabular}{l}
+        \small
 
         A flight to $\underbrace{\mathrm{um}}_\text{FP} \underbrace{\mathrm{Boston}}_\text{RM} \underbrace{\mathrm{I\;mean}}_\text{IM} \underbrace{\mathrm{Denver}}_\text{RP}$ Tuesday\\
 
@@ -176,8 +177,8 @@ Our model is also highly efficient, processing over 900 words per second.
 \caption{\small A sentence with disfluencies annotated in the style of Shriberg (1994) 
     and the Switchboard corpus.
 FP=Filled Pause, RM=Reparandum, IM=Interregnum, RP=Repair.
-We follow previous work in evaluating the system on the accuracy with which
-it identifies speech-repairs, marked \emph{reparandum} above.
+%We follow previous work in evaluating the system on the accuracy with which
+%it identifies speech-repairs, marked \emph{reparandum} above.
 \label{fig:shriberg}}
 \end{figure}
 
@@ -197,18 +198,18 @@ Segment Conjunctions & \textbf{and}, \textbf{and so} & 25,624 \\
 \end{tabular}
 \caption{\small Frequencies of different disfluency types in Sections 2 and 3 of the
 Switchboard \textsc{mrg} files.\label{tab:dfl_freqs}}
-\vspace*{-0.5in}
+\vspace*{-4em}
 \end{table}
 
 
-A verbatim, unpunctuated speech transcript is
-a very different type of language data than well-edited written text, even
+A verbatim, unpunctuated speech transcript has very different linguistic characteristics
+from well-edited written text, even in the absence of speech-recognition errors.
 given perfect speech recognition.  Speech transcripts pose
 two challenges for natural language understanding technologies in particular.
-The \textbf{segmentation} problem arises because speech is continuous, and 
-pauses are less syntactically informative than careful punctuation \citep{gregory:04}.
+The \textbf{segmentation} problem arises because the speech stream is continuous,
+and  pauses are less syntactically informative than careful punctuation \citep{gregory:04}.
 The \textbf{disfluency} problem arises due to language performance problems ---
-speakers um and uh, stop and start, and frequently insert parentheticals.
+speakers \emph{um} and \emph{uh}, stop and start, and frequently insert parentheticals.
 
 %Unscripted speech has several characteristics that make spoken language understanding
 %a distinct problem from understanding written text.  Two such features are that
@@ -216,12 +217,13 @@ speakers um and uh, stop and start, and frequently insert parentheticals.
 
 Well-edited written text can be segmented into sentences easily, using punctuation and
 capitalisation.  Sentence boundary detection systems typically achieve accuracies
-above 99\%.  State-of-the-art speech segmentation systems achieve 96-97\% accuracy.
+above 99\% on clean text input, while state-of-the-art speech segmentation systems
+achieve only 96-97\% accuracy (i.e. a 3-times higher error-rate).
 Segmentation is typically a \emph{pre-}process for parsing, limiting segmentation
 systems to ngram-based features, and acoustic cues, which have proven difficult
-to utilise \citep{liu:05}.  These local features cannot fully determine the segment
-boundaries, because
-segments are identified with tensed clauses, which can span multiple long-range dependencies.  
+to utilise \citep{liu:05}.  These local features cannot accurately identify
+segment boundaries, if segments are identified with tensed clauses, since they can
+contain multiple long-range dependencies.
 
 As well as being continuous, unscripted speech is frequently disfluent.
 Figure \ref{fig:shriberg} shows part of a disfluent utterance, annotated according to
@@ -267,7 +269,7 @@ corpus, there are 2,106 sentences with lengths in that range.
 \label{sec:swbd}
 
 The Switchboard portion of the Penn Treebank \citep{marcus:93} contains 1,126
-transcripts of telephone calls between strangers, on an assigned topic.
+transcripts of telephone calls between strangers on an assigned topic.
 Every file has been annotated for speech-repairs and other disfluencies (filled
 pauses, parentheticals, discourse markers, etc); these annotations are provided
 in the \textsc{dps} files.  Syntactic brackets (\textsc{mrg} files) are available
@@ -280,7 +282,7 @@ frequency of these disfluencies in the training corpus.
 Table \ref{tab:seg_freqs} shows how segmentation affects the length of training
 inputs.  Without any utterance segmentation, the inputs consist of whole turns,
 using the gold-standard diarisation in the \textsc{mrg} files.
-Segmentation doubles the number of inputs (and so halves their length, on average);
+Segmentation doubles the number of segments (and so halves their length, on average);
 i.e., on average each turn contains one sentence-medial segment boundary.
 
 %The Switchboard syntactic annotations come in the form of syntactic brackets.
