@@ -106,10 +106,10 @@ parsing and disfluency detection.  Segment boundaries can then be recovered
 from the syntactic structure if they are required.
 
 We compare the system against a pipeline approach, where the input is segmented
-with a \textsc{crf} model before parsing.  The joint model improves both parsing
-and segmentation accuracy.
-Its key advantage is in avoiding error-propagation problems.  It achieves 88.1\%
-parse accuracy, a 1.9\% improvement over the pipeline approach.
+with a \textsc{crf} model before parsing.  We find that the pipeline approach
+suffers from error-propagation, while the joint model achieves
+state-of-the-art accuracies.
+It achieves 87.9\% parse accuracy, a 2.0\% improvement over the pipeline approach.
 \end{abstract}
 
 % P1
@@ -117,8 +117,10 @@ parse accuracy, a 1.9\% improvement over the pipeline approach.
 
 
 Previous speech understanding systems have required that the input be
-pre-segmented into sentence-like units.  However, the placement of the segment
-boundaries is somewhat arbitrary.  For example, the following turn from the
+pre-segmented into sentence-like units.  However, sentence boundaries are not
+always clear in the speech input, which lacks case distinctions and punctuation,
+and is not reliably segmented by pauses.
+For example, the following turn from the
 Switchboard conversational speech transcripts is segmented into three utterances,
 at the slashes:
 
@@ -132,40 +134,35 @@ uh about yourself
 
 \noindent An annotator could reasonably omit the first boundary, analysing
 the first two units as a single conjoined sentence.  
-We suspect this uncertainty in sentence boundary location
+We suspect this arbitrariness in sentence boundary location
 might be problematic for syntactic parsing, since the boundaries could
-constrain the syntactic analyses in ways that are inconsistent with the parser's
-expectations.  This motivated us to explore approaches where the syntactic parser
-itself is responsible for identifying the locations of sentence boundaries.  Our
-approach here is to associate entire discourse turns with a single syntactic
-structure that consists of a sequence of sentences.
+accidentally constrain the syntactic analyses in ways that are inconsistent with
+the parser's expectations.  This motivated us to explore approaches where the
+syntactic parser itself is responsible for identifying the locations of sentence
+boundaries.  Our approach here is to associate entire discourse turns with a
+single syntactic structure that consists of a sequence of sentences.
 While the length of these turns makes conventional $O(n^3)$ parsing algorithms
 impractical, incremental transition-based parsers now achieve high accuracy,
 while running in time linear in the length of the input string.
+Our parsing model is based on the system described
+by \citet{honnibal:14}, who showed that a joint model of disfluency detection
+and parsing produced state-of-the-art accuracy on both tasks, when gold-standard
+segment boundaries are available.
 
-We tried two ways of parsing the unsegmented inputs.  Our first approach introduced
+We tried two ways of parsing unsegmented inputs.  Our first approach introduces
 a new transition, Break, to explicitly predict segment boundaries during parsing.
 The second approach leaves the segmentation implicit until
 parsing is complete, at which point the boundaries can be read-off from the
-predicted parse.  Our results slightly favour the second approach.
+predicted parse.
 
-Our model is based on the system described
-by \citet{honnibal:14}, who showed that a joint model of disfluency detection
-and parsing produced state-of-the-art accuracy on both tasks.
-Their experiments follow most previous work in using gold-standard segment boundaries.
-In that condition, our model achieved similar parsing and disfluency
-detection results: 90.9\% \textsc{uas}, and 84.1\% $F$-measure.
-We then repeated the experiment with \textsc{crf}-predicted segmentation,
-and found the scores dropped to 86.2\% and 77.9\%.
-%To test whether the syntactic model was particularly sensitive to segmentation,
-%we trained and evaluated the \citet{qian:13} \textsc{m3n} disfluency tagger on
-%unsegmented input, and found that its accuracy dropped by a similar amount.
-
-We then compared the pipeline approach against our two joint models.
-The best joint model achieves 88.1\% parse accuracy, a 1.9\% improvement over
-the pipeline approach, with similar accuracy at disfluency detection.  The
-system is also highly efficient, processing over 900 tokens per second at
-state-of-the-art accuracies.
+We find that both ways of parsing unsegmented input result in superior accuracy
+to a pipeline approach, where the input is pre-segmented by a \textsc{crf} model.
+The joint models prove advantageous at all three evaluations: segmentation,
+disfluency detection and parsing.
+The improvement is particularly substantial for parsing, where the
+pipeline approach results in 85.9\% \textsc{uas}, while the best joint model
+achieves 87.9\%, a new state-of-the-art.  
+Our model is also highly efficient, processing over 900 words per second.
 
 
 \section{Spoken Language Understanding}
