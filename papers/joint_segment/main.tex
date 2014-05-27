@@ -301,6 +301,8 @@ We avoid these extra pre-processing steps in favour of extended disfluency proce
 by subtyping the Edit transition with different disfluency labels.
 
 \section{Joint Disfluency Detection and Parsing}
+\label{sec:model}
+
 
 \begin{figure}
     \centering
@@ -644,7 +646,8 @@ We use the standard train/dev/test split from \citet{Charniak01a}: Sections 2
 and 3 for training, and Section 4 divided into three held-out sections, the first
 of which is used for final evaluation.
 We follow \citet{honnibal:14} in using the \sparseval \citep{sparseval}
-metric to evaluate our parser, using their implementation.
+metric to evaluate our parser, which measures the labelled and unlabelled dependency
+accuracy of gold-standard fluent words.
 
 We follow \citet{Johnson04a} and others in restricting our disfluency evaluation
 to speech repairs, which we identify as words that have a node labelled \textsc{edited}
@@ -663,8 +666,7 @@ and TODO for disfluency $F$-measure.
 The main hyper-parameters of our model are the number of training iterations,
 and the beam-width, which controls a speed/accuracy trade-off.  We found that
 only small accuracy improvements were obtained with beams wider than 8. We set
-the beam-width to 12 for all of our experiments, and follow
-\citet{honnibal:14} in using 15 training iterations.  
+the beam-width to 12 for all of our experiments, and use 15 training iterations.
 
 \subsection{Features}
 
@@ -784,8 +786,8 @@ over the \textsc{crf}.
         & \multicolumn{3}{c|}{Segmented}  & \multicolumn{3}{c}{Unsegmented} \\
         System & $P$ & $R$ & $F$ & $P$ & $R$ & $F$ \\
         \hline \hline
-        Qian \& Liu '13         & 90.6 & 80.7 & 85.3 &      &      &     \\
-        Pipeline                & 92.4 & 76.8  & 84.1 & 81.9 & 73.6 & 77.6 \\ 
+        Qian \& Liu '13         & 90.6 & 80.7  & 85.3  & 83.8 & 76.5 & 80.0 \\
+        Pipeline                & 92.4 & 76.8  & 84.1  & 81.9 & 73.6 & 77.6 \\ 
         Joint (explicit)        & \multicolumn{3}{c|}{n/a} & 88.6 & 68.9 & 77.6 \\
         Joint (implicit)        & \multicolumn{3}{c|}{n/a} & 88.3 & 68.9 & 77.4 \\
         \hline
@@ -798,28 +800,26 @@ over the \textsc{crf}.
 
 Table \ref{tab:dfl} shows the accuracy of the systems at detecting speech-repair
 disfluencies.  We first follow previous work in evaluating our model given
-gold-standard segment boundaries.  The system achieves 84.1\% $F$-measure
-on this evaluation, comparable to the current state-of-the-art.
+gold-standard segment boundaries (\textbf{Segmented}).  The \textbf{Pipeline}
+system is the parsing model described in Section \ref{sec:model}, which is based
+on the \citet{honnibal:14} model, but makes use of the arc-hybrid transition
+system, with a feature set adjusted accordingly. We also train the model to
+detect other disfluency types during parsing, by splitting the Edit
+transition with different labels.
 
-When segment boundaries were predicted before parsing
-(\textbf{CRF $\rightarrow$ Parser}), precision dropped from 92.4\% to 82.8\%,
-with a much smaller reduction in recall.
-It may be that segmentation errors lead to ungrammatical input, which the parser
-mistakes for disfluencies.
+While \citet{honnibal:14} found that their system achieved slightly higher
+accuracy than \citet{qian:13}, our model's accuracy is slightly lower.  It
+may be that the Edit transition does not work as well with the arc-hybrid
+system as it does with the arc-eager system that \citeauthor{honnibal:14} employ.
+Alternatively, our feature set may be less well-tuned for disfluency detection.
 
 Disfluency detection accuracy is substantially lower for all systems when
-gold-standard segment boundaries are not available.  This could indicate that
-the system's disfluency accuracy is highly sensitive to parse quality, which
-is reduced when gold-standard segment boundaries are not available.
-To investigate this, we trained and evaluated the \citet{qian:13} disfluency
-detection system on unsegmented input.  This system uses a cascade of
-sequence-tagging models, and does not predict any syntactic information beyond
-\textsc{pos} tags.
-We found that the \citeauthor{qian:13} system's disfluency $F$-measure dropped
-from 83.9\% to 77\% when gold-standard segment boundaries were not available.
-This suggests to us that segment boundaries are highly informative
-for disfluency detection, possibly due to the higher proportion of segment-initial
-speech-repairs.
+gold-standard segment boundaries were not available (the \textbf{Unsegmented}
+column).  We found the \citet{qian:13} system's drop in accuracy particularly
+interesting.  For the parser-based systems, we expected the unsegmented input
+to reduce parse quality, leading to lower disfluency scores.  However, the
+\citet{qian:13} result suggests that the segment boundaries serve as useful clues
+in themselves.
 
 
 %We first compare our model to previous disfluency detection systems on the
@@ -867,7 +867,7 @@ speech-repairs.
     \caption{\small Unlabelled and labelled (parse) attachment scores on the
         development data.
         \label{tab:parse}}
-%\vspace*{-2em}
+\vspace*{-3em}
 \end{table}
 
 
@@ -913,7 +913,7 @@ accuracy, with a small advantage to the implicit segmentation.
         \hline
         System & Seg. & Disfl. & UAS \\
         \hline \hline
-        Qian \& Liu '13          & ---  &      & --- \\
+        Qian \& Liu '13          & ---  & 79.2 & --- \\
         CRF $\rightarrow$ Parser & 96.7 & 76.3 & 85.9 \\
         Joint (explicit)         & 97.3 & 76.9 & 87.8 \\
         Joint (implicit)         & 97.2 & 76.7 & 87.9 \\
