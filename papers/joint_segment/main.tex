@@ -1001,16 +1001,16 @@ and 82.6\% disfluency $F$-measure, given gold-standard segmentation and \textsc{
 tags.  Although their system differs in several minor ways, it seems likely that
 the biggest factor in their lower accuracy is the lack of beam-search.
 
-%\citet{zhang_pos:11} show that the generalised perceptron with beam-search
-%architecture could be successfully applied to a range of tasks, including
-%joint word segmentation and \textsc{pos} tagging for Chinese.  Their results
-%anticipate the recent interest in joint transtion-based dependency parsing
-%models, such as the work of \citet{dongzhang:13}, who describe a joint
-%transition-based model of dependency parsing and punctuation prediction.  We
-%based our Break transition, described in Section \ref{sec:break}, on their
-%work.  Although our models are similar, there are no directly comparable
-%results, as \citet{dongzhang:13} did not investigate the effect of segmentation
-%on parse accuracy, and did not apply their model to conversational speech.
+\citet{zhang_pos:11} show that the generalised perceptron with beam-search
+architecture could be successfully applied to a range of tasks, including
+joint word segmentation and \textsc{pos} tagging for Chinese.  Their results
+anticipate the recent interest in joint transtion-based dependency parsing
+models, such as the work of \citet{dongzhang:13}, who describe a joint
+transition-based model of dependency parsing and punctuation prediction.  We
+based our Break transition, described in Section \ref{sec:break}, on their
+work.  Although our models are similar, there are no directly comparable
+results, as \citet{dongzhang:13} did not investigate the effect of segmentation
+on parse accuracy, and did not apply their model to conversational speech.
 
 %The main body of work on parsing unsegmented and disfluent speech data was
 %conducted as part of the \textsc{darpa} \textsc{ears} rich transcription program,
@@ -1051,15 +1051,12 @@ We have shown that recent advances in transition-based parsing offer a solution
 to this chicken-and-egg problem.  We model all three problems
 jointly, so that the combined problem-space can be searched for a good
 hypothesis. 
-
-We demonstrate a 2\% improvement in dependency parse accuracy over a pipeline
-approach.  Our results are the first to be published on this task, as the recent
-work on speech parsing has used inputs with gold segmentation.  
-Our model currently makes use of no acoustic features, which would be interesting
-to explore for future work.  It would also be interesting to connect the model
-to speech recognition output, to evaluate the effect of recognition errors on
-parse accuracy, and to use the parser as a conditional language model, to reduce
- word error rates.
+We demonstrate a 2\% improvement in dependency parse accuracy over the pipeline
+approach.  Our model currently makes use of no acoustic features, which would be interesting
+to explore for future work.  It would also be interesting to apply the model to
+spoken language understanding problems, as it is efficient enough to operate
+in real-time, and it is the first model to achieve high
+parsing accuracies on unsegmented spoken language transcripts.
 
 \bibliography{main}
 \bibliographystyle{aclnat}
