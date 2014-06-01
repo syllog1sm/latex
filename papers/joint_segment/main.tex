@@ -162,7 +162,7 @@ disfluency detection and parsing.
 The improvement is particularly substantial for parsing, where the
 pipeline approach results in 85.9\% \textsc{uas}, while the best joint model
 achieves 87.9\%, a new state-of-the-art.  
-Our model is also highly efficient, processing over 900 words per second.
+Our model is also highly efficient, processing approximately 900 words per second.
 
 
 \section{Spoken Language Understanding}
@@ -204,12 +204,13 @@ Switchboard \textsc{mrg} files.\label{tab:dfl_freqs}}
 
 A verbatim, unpunctuated speech transcript has very different linguistic characteristics
 from well-edited written text, even in the absence of speech-recognition errors.
-given perfect speech recognition.  Speech transcripts pose
+Speech transcripts pose
 two challenges for natural language understanding technologies in particular.
 The \textbf{segmentation} problem arises because the speech stream is continuous,
 and  pauses are less syntactically informative than careful punctuation \citep{gregory:04}.
 The \textbf{disfluency} problem arises due to language performance problems ---
-speakers \emph{um} and \emph{uh}, stop and start, and frequently insert parentheticals.
+speakers \emph{um} and \emph{uh}, edit their utterances on the fly, and
+frequently insert parentheticals.
 
 %Unscripted speech has several characteristics that make spoken language understanding
 %a distinct problem from understanding written text.  Two such features are that
@@ -220,7 +221,7 @@ capitalisation.  Sentence boundary detection systems typically achieve accuracie
 above 99\% on clean text input, while state-of-the-art speech segmentation systems
 achieve only 96-97\% accuracy (i.e. a 3-times higher error-rate).
 Segmentation is typically a \emph{pre-}process for parsing, limiting segmentation
-systems to ngram-based features, and acoustic cues, which have proven difficult
+systems to ngram-based features, and acoustic cues --- which have proven difficult
 to utilise \citep{liu:05}.  These local features cannot accurately identify
 segment boundaries, if segments are identified with tensed clauses, since they can
 contain multiple long-range dependencies.
@@ -261,7 +262,7 @@ reparandum, repair and the fluent sentence \citep{Johnson04a}.
     there are 161 sentences with between 51 and 100 tokens; in the unsegmented
 corpus, there are 2,106 sentences with lengths in that range.
 \label{tab:seg_freqs}}
-%\vspace*{-5em}
+\vspace*{-2em}
 \end{table}
 
 \newpage
@@ -297,7 +298,8 @@ and removing punctuation and partial words (words tagged XX and words ending in
 sentences, not removing filled pauses as a pre-process, and not
 re-tokenising the common parentheticals \emph{you know} and \emph{i mean}.
 We avoid these extra pre-processing steps in favour of extended disfluency processing,
-by subtyping the Edit transition with different disfluency labels.
+by subtyping the Edit transition with different disfluency labels, as described
+in Section \ref{sec:edit}.
 
 \section{Joint Disfluency Detection and Parsing}
 \label{sec:model}
@@ -397,7 +399,7 @@ training oracles to be defined easily, due to the \emph{arc decomposable}
 property that \citet{goldberg:13} show it shares with the arc-eager system.
 
 \subsection{The Edit Transition}
-
+\label{sec:edit}
 We employ the Edit transition defined by Honnibal and Johnson (2014), to handle
 speech repairs.
 The Edit transition marks the word $i$ on top of the stack $\sigma | i$ as
@@ -432,7 +434,6 @@ may introduce:
 when calculating the figure-of-merit for the beam, we use the
 \emph{mean transition score}, instead of the \emph{total transition score}.
 
-\clearpage
 
 \section{Joint Segmentation and Parsing}
 
@@ -485,14 +486,14 @@ when calculating the figure-of-merit for the beam, we use the
     \end{dependency}
     \vspace*{-2em}
 \caption{\small Two parse states, showing a segmentation decision to be made using
-    Strategy 1, Arc-from-Root.
+    Strategy 1, implicit segmentation.
     Words remaining on the stack are
     circled, and current arcs are drawn with solid lines.  The arrow indicates
     the start of the buffer.  In the top state, the correct move is a Left-Arc
     as there is no dependency between \emph{wear} and \emph{tired}.  In the
     lower state, the Right-Arc is correct.  The  dependencies that would be
 added by these moves are shown with dashed lines.\label{fig:left_state}}
-\vspace*{-3em}
+%\vspace*{-3em}
 \end{figure}
 
 We now describe two ways of encoding utterance segmentation decisions into the
@@ -524,7 +525,7 @@ so delaying them until the potential left and right heads can be compared in the
 same state may be advantageous.
 
 \subsection{Strategy 2: Explicit Break transition}
-
+\label{sec:break}
 \begin{figure}
 \begin{dependency}[theme=simple, edge unit distance=1.0ex]
     \begin{deptext}[row sep=2.0ex]
@@ -547,12 +548,21 @@ same state may be advantageous.
         an arrow). After the Break transition is applied, \emph{wear} is popped
     from the stack, and the dashed arc is added from the \textsc{root} symbol.
     \label{fig:break_state}}
-\vspace*{-3em}
+%\vspace*{-3em}
 \end{figure}
-The second strategy we present uses a specific Break transition.  The transition
-is applied when there is exactly one word on the stack, and the word at the start
-of the buffer has no leftward children.  The word on the stack is arced to the
-\textsc{root} symbol, and the stack is popped:
+The second strategy we present uses a specific Break transition.  
+The design of the transition was inspired by the work of \citet{dongzhang:13},
+who describe a joint transition-based model of dependency parsing and punctuation
+prediction.  The task of predicting sentence-final punctuation, and our task of
+utterance segmentation, are closely related, so we experimented with their
+approach.
+
+\citet{dongzhang:13} train their model to insert sentence-final punctuation when
+the stack is fully connected and the first word of a new sentence is at the start
+of the buffer. Our Break transition operates in a similar fashion.
+The transition is applied when there is exactly one word on the stack, and the
+word at the start of the buffer has no leftward children.  The word on the stack
+is arced to the \textsc{root} symbol, and the stack is popped:
 \vspace*{-1em}
 \begin{center}
     \begin{tabular}{l}
@@ -621,9 +631,9 @@ gold-standard:
           R is not a gold action.
 \end{enumerate}
 
-\noindent In Strategy 1 (Arc-from-Root), the segment boundaries are inserted
+\noindent In the implicit segmentation strategy, the segment boundaries are inserted
 via the standard Left-Arc transition, so no adjustment to the training oracle
-is required.  In Strategy 2, a new transition, Break, is used to insert the
+is required.  In the explicit strategy, the new Break transition is used to insert the
 segment boundaries. 
 
 The Break transition is gold-standard if and only if its pre-conditions
@@ -640,7 +650,7 @@ which used the RT'04 shared-task data distributed by \textsc{darpa}.
 The RT'04 data covers part of the Switchboard corpus text, but was reanalysed
 for segmentation and disfluency detection, with slightly different annotation
 conventions.  Previous work has found it difficult to reconcile the RT annotations
-with those provided by the Penn Treebank \citep{kahn:thesis05}.
+with those provided by the Penn Treebank \citep{bies:06}.
 We use
 the Switchboard corpus for consistency with previous work on disfluency 
 detection and parsing \citep{qian:13,rasooli:13,honnibal:14}.
@@ -714,10 +724,11 @@ with a very different algorithm.
 
 Because the system does not require syntactically-annotated training data, it
 can be trained from the \textsc{dps} files, which make more training data
-available than the syntactically-annotated \textsc{mrg} files.  
-
-To promote direct comparison, we trained the system from the \textsc{mrg}
-annotations, and followed the syntactic disfluency annotations (i.e., words
+available than the syntactically-annotated \textsc{mrg} files.  \citet{qian:13}
+train and evaluate their model from the \textsc{dps} annotations.
+However, to promote direct comparison against our syntactic disfluency detectors,
+we trained the system from the \textsc{mrg} files, and followed the syntactic
+disfluency annotations (i.e., words
 were marked disfluent if they were part of the yield of an \textsc{edited} node).
 Interestingly, this resulted in slightly higher accuracy than 
 \citet{qian:13} report.  It seems that the \textsc{mrg} annotated speech repairs
@@ -786,7 +797,7 @@ The two syntactic systems achieve equivalent accuracy, with similar precision/re
 bias.  Because the parser is incremental, it is easy to capture the information
 available to the \textsc{crf} system, with the added advantage of long-range
 syntactic features.  This gives the parsing models a small but statistically
-significant accuracy advantage over the \textsc{crf}.
+significant accuracy advantage.
 
 \subsection{Disfluency Detection Accuracy}
 
@@ -911,25 +922,6 @@ attaching segment-governors to the root node.  The two strategies yield similar
 accuracy, with a small but statistically significant advantage to the implicit
 segmentation.
 
-\begin{table}
-    \centering
-    \small
-    \begin{tabular}{l|rrrr}
-        \hline
-        System & Seg. & Disfl. & \textsc{uas} & w/s \\
-        \hline \hline
-        Qian \& Liu '13          & ---  & 79.2 & ---  & 1,161 \\
-        CRF $\rightarrow$ Parser & 96.7 & 76.4 & 85.9 & 948   \\
-        Joint (explicit)         & 97.3 & 76.9 & 87.8 & 890   \\
-        Joint (implicit)         & 97.2 & 76.7 & 87.9 & 893   \\
-        \hline
-    \end{tabular}
-    \caption{\small Final evaluation scores, for segmentation, disfluency detection,
-    parsing and efficiency, on unsegmented input.\label{tab:test}}
-    \vspace*{-4em}
-\end{table}
-
-
 \section{Final Evaluation}
 
 Table \ref{tab:test} shows the final evaluation, using unsegmented inputs from
@@ -949,6 +941,26 @@ We conclude that the way in which the segmentation decisions are encoded into th
 system is relatively unimportant, so long as the decisions are made jointly during
 parsing.
 
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrrr}
+        \hline
+        System & Seg. & Disfl. & \textsc{uas} & w/s \\
+        \hline \hline
+        Qian \& Liu '13          & ---  & 79.2 & ---  & 1,161 \\
+        CRF $\rightarrow$ Parser & 96.7 & 76.4 & 85.9 & 948   \\
+        Joint (explicit)         & 97.3 & 76.9 & 87.8 & 890   \\
+        Joint (implicit)         & 97.2 & 76.7 & 87.9 & 893   \\
+        \hline
+    \end{tabular}
+    \caption{\small Final evaluation scores, for segmentation, disfluency detection,
+    parsing and efficiency, on unsegmented input.\label{tab:test}}
+    \vspace*{-4em}
+\end{table}
+
+
+
 The advantage of joint modelling over the pipeline approach
 (\textbf{CRF $\rightarrow$ Parser}) is clear, particularly
 on the parsing evaluation, where the \textbf{Joint (implicit)} model achieved
@@ -966,22 +978,88 @@ system achieved significantly better accuracy.  We attribute this to the loss
 of parse quality for the syntactic models on unsegmented input, which is linked
 to their disfluency detection accuracy due to their joint approach.
 
+Finally, we note that there is little loss in efficiency from parsing the unsegmented
+input, and that the joint models are almost as efficient as the \citet{qian:13}
+sequence-tagging system, which only performs disfluency detection.
+
 \section{Related Work}
 
-\begin{itemize}
-    \item \citet{honnibal:14}
-    \item \citet{rasooli:13}
-    \item Brian Roark's reranking-based segmentation system
-    \item Qian and Liu (2013) disfluency detection system
-    \item Johnson and Charniak systems
-    \item RT'04 systems
-\end{itemize}
+Our model draws directly on the work of \citet{honnibal:14}, who showed that
+a joint transition-based model achieved superior results to a pipeline approach
+for disfluency detection and parsing.  We describe a similar model, which we
+extend to utterance segmentation.  They report 90.9\% \textsc{uas} and 85.8
+disfluency detection $F$-measure on the development data, given gold-standard
+segmentation.  Our model achieves 90.9\% and 84.1 on these evaluations.
+We attribute the difference in disfluency detection to a lack of feature tuning
+in our model.
 
-\newpage
+\citet{rasooli:13} and \citet{rasooli:14} also describe joint transition-based
+models of dependency parsing and disfluency detection.  However, their system
+is limited to greedy search, and their disfluency detection transition operates
+slightly differently.  The \citet{rasooli:14} system achieves 88.4\% \textsc{uas}
+and 82.6\% disfluency $F$-measure, given gold-standard segmentation and \textsc{pos}
+tags.  Although their system differs in several minor ways, it seems likely that
+the biggest factor in their lower accuracy is the lack of beam-search.
+
+%\citet{zhang_pos:11} show that the generalised perceptron with beam-search
+%architecture could be successfully applied to a range of tasks, including
+%joint word segmentation and \textsc{pos} tagging for Chinese.  Their results
+%anticipate the recent interest in joint transtion-based dependency parsing
+%models, such as the work of \citet{dongzhang:13}, who describe a joint
+%transition-based model of dependency parsing and punctuation prediction.  We
+%based our Break transition, described in Section \ref{sec:break}, on their
+%work.  Although our models are similar, there are no directly comparable
+%results, as \citet{dongzhang:13} did not investigate the effect of segmentation
+%on parse accuracy, and did not apply their model to conversational speech.
+
+%The main body of work on parsing unsegmented and disfluent speech data was
+%conducted as part of the \textsc{darpa} \textsc{ears} rich transcription program,
+%particularly the fall rich transcription (\textsc{rt04}) workshop.  The shared-task
+%development and evaluation data were drawn from the
+%Switchboard corpus, but were re-annotated for disfluencies and utterance segmentation.
+%The \textsc{rt04} annotations proved
+%difficult to reconcile with the Switchboard syntactic brackets \citep{bies:06}.
+%These annotation difficulties contributed to low scores for the systems participating
+%in the evaluation.
+
+The impact of utterance segmentation on parse quality was investigated by
+\citet{kahn:04}, in the context of a \textsc{pcfg} parsing model.  They compared
+the effect on parse accuracy of three sentence segmentation systems: oracle segmentation,
+an \textsc{hmm} system, and naive pause-based segmentation.  They showed that
+the \textsc{hmm} segmentation system achieved a 7\% improvement in bracket
+precision and recall over the baseline segmenter, and scored 5\% below the
+oracle segmenter.
+
+A weakness of the pipeline architecture employed by \citet{kahn:04} and others
+is error-propagation, which arises because the earlier components forward only
+a single hypothesis.  One way of mitigating this problem is re-ranking, which
+\citet{Johnson04a,Johnson04b} used to improve disfluency detection, and
+\citet{roark:06} used to improve utterance segmentation.  The re-ranking architecture
+allows subsequent models to search some of the hypothesis space from earlier in the
+pipeline, i.e. a disfluency or segmentation analysis can be selected in light
+of the parse structure it permits.  We instead adopt a fully joint approach,
+made tractable by recent advances in incremental parsing.
 
 \section{Conclusion}
 
-\newpage
+Segmentation and disfluency detection make speech parsing particularly
+difficult, relative to understanding written text.  Both disfluency detection
+and segmentation require syntactic features, but standard polynomial-time
+parsing algorithms cannot be applied accurately before segmentation and disfluency
+detection have been conducted.
+We have shown that recent advances in transition-based parsing offer a solution
+to this chicken-and-egg problem.  We model all three problems
+jointly, so that the combined problem-space can be searched for a good
+hypothesis. 
+
+We demonstrate a 2\% improvement in dependency parse accuracy over a pipeline
+approach.  Our results are the first to be published on this task, as the recent
+work on speech parsing has used inputs with gold segmentation.  
+Our model currently makes use of no acoustic features, which would be interesting
+to explore for future work.  It would also be interesting to connect the model
+to speech recognition output, to evaluate the effect of recognition errors on
+parse accuracy, and to use the parser as a conditional language model, to reduce
+ word error rates.
 
 \bibliography{main}
 \bibliographystyle{aclnat}
