@@ -1,0 +1,472 @@
+
+\documentclass[color=usenames,dvipsnames]{lecture}
+\usepackage{xcolor}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+
+\usepackage{algorithmicx}
+\usepackage{tikz-dependency}
+\usepackage{placeins}
+\usepackage{cancel}
+
+\definecolor{faint}{gray}{0.60}
+
+\title{Joint Incremental Disfluency Detection and Dependency Parsing}
+\author{Matthew Honnibal}
+
+
+\begin{document}
+
+\titleslide
+
+\begin{points}{Why is Speech Parsing Hard?}
+\p \textbf{Disfluencies:}\\
+\emph{I want a flight to Boston, uh, I mean, to Denver on Friday}
+\p \textbf{Segmentation}\\
+No punctuation, capitalisation etc. Pauses unreliable.
+\p \textbf{Recognition Errors}\\
+Do we train from noisy transcripts? If so, how?
+\p Previous work: Pipelines. Reranking.
+\p Our idea: \textbf{Joint incremental model}, with beam-search.
+\p This work: Joint disfluency detection and dependency parsing.\\
+\begin{itemize}
+\p State-of-the-art accuracy at both tasks
+\p Very fast: 550 words per second
+\p Expected linear time. Promising for segmentation.
+\end{itemize}
+\end{points}
+
+\begin{plain}{Example Disfluency Detection Output}
+
+\begin{quote}
+when i \textcolor{faint}{uh} was in \textcolor{faint}{uh} undergraduate school a
+\textcolor{red}{long} long time ago
+i \textcolor{faint}{uh} noted that the \textcolor{blue}{monthly salary} starting 
+average monthly \textcolor{green}{salary} salary for engineers that
+\textcolor{faint}{you know}
+in my discipline was \textcolor{faint}{like oh} six hundred ten dollars a month or something like that
+\end{quote}
+
+\begin{itemize}
+\item Filled pauses, parentheticals etc in \textcolor{faint}{gray}
+\item True positives in \textcolor{green}{green}
+\item False positives in \textcolor{red}{red}
+\item False negatives in \textcolor{blue}{blue}
+\end{itemize}
+
+\end{plain}
+
+\begin{plain}{What's the `Right' Parse for a Disfluent Sentence?}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& to \& |[q]| um \& |[q]| Boston \& |[q]| I \& |[q]| mean \& Denver \& Tuesday \\
+    \end{deptext}
+    \depedge{2}{1}{}
+    \depedge{2}{3}{}
+    \depedge[edge unit distance=0.2ex]{3}{8}{}
+    \depedge[edge unit distance=0.2ex]{3}{9}{}
+\end{dependency}
+\end{figure}
+
+\begin{itemize}
+
+\item We don't know what arcs should be added for disfluent words
+\item ...But we know we don't care!
+\item Base supervision on fluent dependencies (`dynamic' oracle)
+\item Transition sequence left latent
+\item Arcs for disfluent words can be added, and later deleted
+\end{itemize}
+\end{plain}
+
+\begin{plain}{Related work}
+
+\begin{center}
+\begin{tabular}{l|rr|r}
+\hline
+     & Deps  & Disfl. \\
+     \hline \hline
+Charniak \& Johnson '04 &  ---         & 82.1 & Rerank $n$-best list\\
+Rasooli \& Tetrault '14 &  88.4        & 82.6 & Joint parser \\
+Qian \& Liu '13         &  ---         & \textbf{83.9} & Sequence tagger \\
+This work               &\textbf{90.5} & \textbf{84.1} & Joint parser \\
+\hline
+\end{tabular}
+\end{center}
+
+\begin{itemize}
+\item Rasooli and Tetrault (2013, 2014): Greedy parsing, iterative training,
+      different Edit transition.
+\item Johnson and Charniak (2004): Generate $n$-best disfluency candidates,
+   syntactic \textsc{lm} and reranking.
+\item Qian and Liu (2013): Sequence tagging disfluency detection.
+\end{itemize}
+\end{plain}
+
+
+% 1
+\begin{plain}{Non-monotonic Edit transition}
+Begin with empty stack. Features look 3 words into the buffer. (As normal.)
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& |[q]|flight \& |[q]|to \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{1}{}
+\end{dependency}
+
+\end{figure}
+\end{plain}
+
+
+% 2
+\begin{plain}{Non-monotonic Edit transition}
+Words on stack circled. Arrow marks start of buffer.
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& |[q]|to \& |[q]| Boston \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{2}{}
+    \wordgroup{1}{1}{1}{}
+\end{dependency}
+
+\begin{itemize}
+  \item \textbf{S}hift: Push stack.
+\end{itemize}
+
+\end{figure}
+\end{plain}
+
+
+% 3
+\begin{plain}{Non-monotonic Edit transition}
+Arc-eager: Arcs between start of buffer and top of stack.
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& |[q]|to \& |[q]| Boston \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{2}{}
+    \depedge{2}{1}{}
+\end{dependency}
+
+\begin{itemize}
+  \item \textbf{S}hift: Push stack
+  \item \textbf{L}eft: Arc from buffer. Pop stack.
+\end{itemize}
+
+\end{figure}
+\end{plain}
+
+% 4
+\begin{plain}{Non-monotonic Edit transition}
+
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& to \& |[q]| Boston \& |[q]| \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{3}{}
+    \depedge{2}{1}{}
+    \wordgroup{1}{2}{2}{}
+\end{dependency}
+
+\begin{itemize}
+  \item \textbf{S}hift: Push stack
+  \item \textbf{L}eft: Arc from buffer. Pop stack.
+\end{itemize}
+
+\end{figure}
+\end{plain}
+
+
+% 5
+\begin{plain}{Non-monotonic Edit transition}
+Key idea: Incremental, and \emph{non-monotonic}.\\
+Process the substring we've seen.\\
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& to \&  Boston \& |[q]| uh \& |[q]| Denver \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{4}{}
+    \depedge{2}{1}{}
+    \depedge{2}{3}{}
+    \wordgroup{1}{2}{2}{}
+    \wordgroup{1}{3}{3}{}
+\end{dependency}
+
+\begin{itemize}
+  \item \textbf{S}hift: Push stack.
+  \item \textbf{L}eft: Arc from buffer. Pop.
+  \item \textbf{R}ight: Arc from stack. Push.
+\end{itemize}
+
+\end{figure}
+\end{plain}
+
+
+% 5
+\begin{plain}{Non-monotonic Edit transition}
+The arc from \emph{to} to \emph{Boston} is not in the gold-standard\\
+We don't train the parser to avoid it\\
+We give it a way to delete it, instead
+\begin{figure}
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& to \&  Boston \&  uh \& |[q]| Denver \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{2}{1}{}
+    \depedge{2}{3}{}
+    \depedge{3}{4}{}
+    \wordgroup{1}{2}{2}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{4}{4}{}
+\end{dependency}
+
+\begin{itemize}
+  \item \textbf{S}hift: Push stack.
+  \item \textbf{L}eft: Arc from buffer. Pop.
+  \item \textbf{R}ight: Arc from stack. Push.
+\end{itemize}
+
+\end{figure}
+\end{plain}
+
+
+\begin{plain}{Edit transition before (above) and after (below)}
+Arcs are deleted by Edit. Lots of ways to reach the gold-standard.\\
+Supervision over arcs, disfluencies. Transition history left latent.\\
+    \centering
+    \begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+        A \& flight \& to \&  Boston \&  uh \& |[q]| Denver \\
+        A \& flight \& to \&  \cancel{Boston} \&  uh \& |[q]| Denver \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{5}{}
+    \depedge{2}{1}{}
+    \depedge{2}{3}{}
+    \depedge{3}{4}{}
+    \wordgroup{1}{2}{2}{}
+    \wordgroup{1}{3}{3}{}
+    \wordgroup{1}{4}{4}{}
+
+    \wordgroup{2}{2}{2}{}
+    \wordgroup{2}{3}{3}{}
+    \depedge[edge below]{2}{1}{}
+    \depedge[edge below]{2}{3}{}
+\end{dependency}
+\begin{itemize}
+  \item \textbf{S}hift: Push stack.
+  \item Re\textbf{D}uce: Pop stack.
+  \item \textbf{L}eft: Arc from buffer. Pop.
+  \item \textbf{R}ight: Arc from stack. Push.
+  \item \textbf{E}dit: Mark top of stack disfluent. Delete arcs. Pop. \textcolor{faint}{+ more...}
+\end{itemize}
+\end{plain}
+
+
+\begin{points}{What about arcs from disfluent words?}
+\p She \textcolor{faint}{had her own} still had her own
+\p I \textcolor{faint}{want} uh would like...
+\p Well of course \textcolor{faint}{it 's} you know it 's
+\p Fewer than 1\% of the \textcolor{faint}{heads of} uh chairmen of the board
+\end{points}
+
+
+\begin{plain}{Some arcs from disfluent words are `natural'}
+\emph{She} is fluent here, \emph{had} is disfluent.
+\begin{center}
+\begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    She \& had \& |[q]| her \& |[q]| own \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{2}{}
+    \wordgroup{1}{1}{1}{}
+\end{dependency}
+\end{center}
+Left-Arc leaves us in this state:\\
+\begin{center}
+\begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    She \& had \& |[q]| her \& |[q]| own \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{2}{}
+    \depedge{2}{1}{}
+\end{dependency}
+\end{center}
+
+Problem: We've popped \emph{She} from the stack!\\
+\end{plain}
+
+\begin{plain}{Edit transition before (above) and after (below)}
+Solution: Restore \emph{leftward} children to the stack after Edit.
+
+\begin{center}
+\begin{dependency}[theme=simple]
+    \tikzstyle{t}=[text=green,ultra thick,font=\bfseries\itshape]
+    \tikzstyle{q}=[text=gray,very thin, dashed]
+    \tikzstyle{m}=[font=\bfseries\itshape]
+    \tikzstyle{n}=[font=\itshape]
+    \begin{deptext}[column sep=.075cm, row sep=.1ex]
+    She \& had \&  her \& own \& still \& had \\
+    She \& \cancel{had} \&  \cancel{her} \& \cancel{own} \& still \& had \\
+    \end{deptext}
+    \deproot[edge height=0.7cm, ultra thick]{6}{}
+    \depedge{2}{1}{}
+    \depedge{2}{4}{}
+    \depedge{4}{3}{}
+    \depedge{6}{5}{}
+    \wordgroup{1}{1}{1}{}
+
+    \wordgroup{2}{1}{1}{}
+    \depedge[edge below]{6}{5}{}
+\end{dependency}
+\end{center}
+\begin{itemize}
+  \item \textbf{E}dit: Mark top of stack and its rightward subtree disfluent. Delete arcs. Pop. Restore immediate leftward children.
+\end{itemize}
+
+Why only \emph{leftward} children?\\
+For right-arcs, we've seen the fluent head.
+
+\end{plain}
+
+\begin{points}{Transition system summary: Why non-monotonic?}
+\p \textbf{Easy}: Transition-system has \emph{completeness}
+\p \textbf{Hard}: Transition-system has \emph{learnability}
+\p Not enough that there be \emph{some} path to the gold-standard
+\p We want to get there without actions that look locally unlikely
+\p We don't just want to lean on the beam
+\p But, disfluencies are very garden path-y
+\p \textbf{Speakers repair their string}
+\p \textbf{So, we repair our parse}
+\end{points}
+
+\begin{points}{Parsing model}
+\p Arc-eager dependency parsing with beam-search ala Zhang/Clark/Nivre
+\p Averaged perceptron: easy, fast, good
+\p Global/structured model (crucial for beam-search)
+\p `Dynamic' training oracle (crucial for non-monotonic)
+\p Latent-variable training well known for structured perceptron
+  (Sun, 2009; Zettlemoyer and Collins)
+\end{points}
+
+\begin{points}{Training Procedure}
+\p Receive current weights, string, gold-standard dependencies/disfluencies
+\p Given string, \textbf{search for best parse}
+\p Given parse and gold-standard, calculate cost
+\p If zero-cost, receive next instance
+\p Else, \textbf{search for best zero-cost parse}
+\p Use dynamic oracle, only add zero-cost actions to beam
+\p Find state with \textbf{maximum violation} (Huang, 2012)
+\p \textbf{Update weights}
+\end{points}
+
+\begin{plain}{Development results: Edit transition and features help}
+
+\begin{table}
+    \centering
+    \small
+    \begin{tabular}{l|rrr|rr|r}
+        & P & R & F & \textsc{uas} & \textsc{las} & w/s \\
+        \hline \hline
+        Baseline joint        &	79.4 &	70.1 &	74.5 &	89.9 &	86.9 & 711 \\
+        +Features             &	86.0 &	77.2 &	81.3 &	90.5 &	87.5 & 539 \\ 
+\textbf{+Edit transition}      &	92.2 &	80.2 &	85.8 &	90.9 &	87.9 & 555 \\ 
+\hline       
+Oracle   & 100 & 100 & 100 & 91.7    & 88.6 & 782 \\
+\hline
+    \end{tabular}
+\end{table}
+\begin{itemize}
+\item Baseline: Standard Zhang/Nivre/Clark parser. Disfluencies marked with arc labels.
+\item Features and Edit transition give +1\% parse accuracy, +11.3\% disfluency detection
+\item Parse accuracy 0.8\% behind perfect disfluency detection
+\end{itemize}
+\end{plain}
+
+\begin{plain}{Final evaluation: Joint better than pipeline}
+
+Pre-processed input with two state-of-the-art disfluency detectors.
+
+\begin{table}
+    \small
+    \centering
+    \begin{tabular}{l|r|r}
+        & Disfl. F & \textsc{uas} \\
+        \hline \hline
+        Johnson et al pipeline      & 82.1 & 90.3 \\ 
+        Qian and Liu  pipeline      & \textbf{83.9} & 90.1 \\
+\hline
+Baseline joint parser & 73.9 & 89.4 \\
+Final joint parser    & \textbf{84.1} & \textbf{90.5} \\
+\hline
+    \end{tabular}
+\end{table}
+
+Joint model's parse accuracy is significantly better.
+
+\end{plain}
+
+
+\begin{points}{What makes the model work?}
+
+\p Seems important:\\
+\begin{itemize}
+\item Incremental transition-based parsing
+\item Non-monotonic transition system
+\item Leaving transition history latent (dynamic oracle)
+\item Features to capture rough-copy structure
+\end{itemize}
+\p Seems less important:\\
+\begin{itemize}
+\item Dependency parsing. Why not \textsc{psg}, \textsc{ccg}, etc --- if incremental.
+\item Our exact definition of Edit. May be better transitions?
+\item Averaged perceptron. Why not \textsc{adagrad}, \textsc{crf} etc.
+\item Our exact feature definitions. Can always be improved!
+\end{itemize}
+\end{points}
+
+\begin{points}{Conclusion and future work}
+\p Accurate and efficient joint disfluency detection and parsing
+\p Out-performs pipeline of state-of-the-art components
+\p Does not require input be pre-segmented
+\p Under-scores importance of spurious ambiguity, dynamic oracles in
+   incremental parsing
+\p Future work: Connect to speech recogniser output.
+\end{points}
+
+\end{document}
