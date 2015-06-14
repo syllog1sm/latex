@@ -1,0 +1,344 @@
+% vim: set textwidth=78 fo+=t :
+
+\documentclass[11pt,letterpaper]{article}
+\usepackage{acl2013}
+\usepackage{amsmath, amsthm}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage{xspace}
+\usepackage{natbib}
+\usepackage{amsfonts}
+\usepackage{tikz-dependency}
+\usepackage{placeins}
+\usepackage{xcolor}
+\usepackage[noend]{algpseudocode}
+\usepackage{hyperref}
+\usepackage{algorithm}
+\usepackage{cancel}
+% Alter some LaTeX defaults for better treatment of figures:
+    % See p.105 of "TeX Unbound" for suggested values.
+    % See pp. 199-200 of Lamport's "LaTeX" book for details.
+    %   General parameters, for ALL pages:
+    \renewcommand{\topfraction}{0.9}	% max fraction of floats at top
+    \renewcommand{\bottomfraction}{0.8}	% max fraction of floats at bottom
+    %   Parameters for TEXT pages (not float pages):
+    \setcounter{topnumber}{2}
+    \setcounter{bottomnumber}{2}
+    \setcounter{totalnumber}{4}     % 2 may work better
+    \setcounter{dbltopnumber}{2}    % for 2-column pages
+    \renewcommand{\dbltopfraction}{0.9}	% fit big float above 2-col. text
+    \renewcommand{\textfraction}{0.07}	% allow minimal text w. figs
+    %   Parameters for FLOAT pages (not text pages):
+    \renewcommand{\floatpagefraction}{0.7}	% require fuller float pages
+	% N.B.: floatpagefraction MUST be less than topfraction !!
+    \renewcommand{\dblfloatpagefraction}{0.7}	% require fuller float pages
+
+	% remember to use [htp] or [htpb] for placement
+
+
+\setlength\titlebox{6.5cm}    % Expanding the titlebox
+
+
+\renewcommand{\tabcolsep}{5pt}
+
+\newcommand{\baseacc}{00.00\xspace}
+\newcommand{\sysacc}{00.00\xspace}
+\newcommand{\sysimprove}{00.00\xspace}
+\newcommand{\las}{\textsc{las}\xspace}
+\newcommand{\uas}{\textsc{uas}\xspace}
+\newcommand{\pp}{\textsc{pp}\xspace}
+\newcommand{\pos}{\textsc{pos}\xspace}
+\newcommand{\wsj}{\textsc{wsj}\xspace}
+\newcommand{\edittrans}{\textsc{edit}\xspace}
+
+\newcommand{\stacktop}{S$_0$\xspace}
+\newcommand{\buffone}{N$_0$\xspace}
+
+\newcommand{\tuple}[1]{$\langle#1\rangle$}
+\newcommand{\maybe}[1]{\textcolor{gray}{#1}}
+\newcommand{\note}[1]{\textcolor{red}{#1}}
+\newcommand{\state}{\mathcal{S}}
+\newcommand{\nmae}{\textsc{nmae}\xspace}
+\newcommand{\pcfg}{\textsc{pcfg}\xspace}
+
+\newcommand{\szero}{S0\xspace}
+\newcommand{\nzero}{N0\xspace}
+
+\newcommand{\szeroH}{S0$_h$\xspace}
+\newcommand{\szeroHH}{S0$_{h2}$\xspace}
+\newcommand{\szeroL}{S0$_L$\xspace}
+\newcommand{\szeroLL}{S0$_{L2}$\xspace}
+\newcommand{\szeroR}{S0$_R$\xspace}
+\newcommand{\szeroRR}{S0$_{R2}$\xspace}
+\newcommand{\szeroLzero}{S0$_{L0}$\xspace}
+\newcommand{\szeroRzero}{S0$_{R0}$\xspace}
+
+\newcommand{\nzeroL}{N0$_L$\xspace}
+\newcommand{\nzeroLL}{N0$_{LL}$\xspace}
+\newcommand{\nzeroLzero}{N0$_{L0}$\xspace}
+
+\newcommand{\szeroRedge}{S0$_{re}$\xspace}
+\newcommand{\szeroLedge}{S0$_{le}$\xspace}
+\newcommand{\nzeroLedge}{N0$_{le}$\xspace}
+
+\newcommand{\sparseval}{\textsc{sparseval}\xspace}
+
+\title{}
+
+\author{
+	Anonymous\\
+  	Department\\
+  	Institution\\
+  	Address\\
+  {\tt \small email }\\
+}
+
+\date{}
+
+\begin{document}
+\maketitle
+\begin{abstract}
+    Transition-based parsers typically employ transition-systems that monotonically
+    narrow the space of derivable trees after each action.  In order to conduct
+    non-greedy search, the parser must maintain a beam of candidate derivations.
+    A non-monotonic transition system maintains ambiguity, e.g. by allowing an
+    action to over-rule a previous one.  Narrow but non-greedy heuristic search
+    can then be conducted via a local model, trained using a form of immitation
+    learning via a dynamic oracle.
+    We present a new non-monotonic version of the arc eager transition system
+    that offers substantially more `repair' capability (and thus deeper search)
+    than previous work.  We observe a 0.55\% improvement in accuracy over the
+    usual arc eager system, an effect comparable to a beam-width of 4, but
+    without the associated run-time penalty.
+\end{abstract}
+
+% P1
+
+%\section{Introduction}
+%
+%Beam-search has been shown to consistently improve the accuracy of transition-based
+%parsing models, if a global model is used to rank candidates in the beam.  However,
+%recent work has shown diminished returns from beam-search, due to the successful
+%application of neural network models in transition-based parsing
+%\citep{chen:14}.  Neural network-based greedy parsers now
+%outperform structured perceptron beam-search models \citep{dyer:15,weiss:15}.
+%More limited improvements have also been shown for beam-search parsers.
+%
+
+%The
+%gains 
+%
+%beam-search relatively less effective for two reasons.  First, the greedy mode
+%
+%\citet{weiss:15}
+%use a structured perceptron as an output layer on top of a feedforward neural network,
+%achieving 94.2
+%now offer substantially improved performance for greedy 
+%
+%consistently exceed the accuracy of graph-based
+%models, 
+%Recent work has shown that neural network models  transition-based parsing has shown substantial
+%improvements in accuracy, particularly for greedy models.
+%A greedy parser guided by a neural network can now achieve higher accuracy than
+%a parser that uses a beam ranked by a global linear model \citep{dyer:15,weiss:15}.
+%Improvements for
+%beam-search have been more limited, due to the relative difficulty of structured
+%prediction with neural networks.
+%
+%present a \textsc{lstm}-based
+%model that achieves 93
+%
+%Incremental parsers achieve high accuracy with surprisingly narrow heuristic
+%search, typically conducted with a beam of candidates ranked by a global model.
+%
+%
+%
+%The standard set-up, introduced by \citet{zhang:08} and refined by \citet{zhang:11},
+%uses the structured average perceptron, violation-fixing updates \citep{huang:12},
+%and roughly 100 hand-tuned feature templates.  Recent work has focussed on
+%replacing the averaged perceptron and hand-tuned feature templates with a deep
+%learning model \citep{chen:14,dyer:15,zhang:15,weiss:15}.  Improvements have been
+%with and with
+%
+%beam-search
+%is of much more limited benefit with the
+%
+%most of
+%the improvement has been observed with greedy search.  B
+%
+%with the new learning models,
+%beam-search is now bringing only
+%prediction with neural network models
+%small gap bet
+%that only very limited search is required. 
+%of beam-search in these neural network parsers has been much more limit
+%
+%Table \ref{tab:soa} shows the speed
+%and accuracy of this model at varying beam-widths, in comparison to a few other
+%parsing models of interest.
+%
+%We note in particular that 
+%
+%Until recently, 
+%parsing models.
+%changes in speed and accuracy 
+%and a beam of 8 a
+%\citet{zhang:08} introduced the now stardard set-up, which  TODO\% improvement over greedy search 
+%Beam-search allows the parser to avoid being `garden pathed' by local structural
+%ambiguities
+%%(e.g. \emph{They saw the cat} vs \emph{They saw the cat was sleeping}).
+%
+%
+%\citet{zhang:11} use a beam-width of 64 candidates, 
+%
+%Incremental parsers typically employ transition-systems that are monotonic:
+%each action excludes analyses, so that the space of reachable analyses is consistently
+%reduced.  If the actions are selected greedily, the search for an analysis will
+%also be greedy.  Non-greedy search then requires back-tracking or beam-search.
+%
+%
+%Local ambiguities are addressed either by look-ahead features, back-tracking,
+%or beam-search.  
+%
+%Heuristic search then requires either back-tracking, or a beam of 
+%transition histories are always disjoint.  
+%
+%Non-greedy search then requires 
+%a beam of candidate configurations, ranked by a global model.  However, if
+%actions are allowed to repair previous decisions, the parser can select actions
+%greedily but conduct non-greedy search for a good analysis.  
+%
+%
+%\citet{nivre:14} present a tree-constrained version of the arc-eager transition
+%system.  In the original system, the parser may terminate at a configuration that
+%is not a connected tree, if the end of the buffer is reached with more than one
+%word on the stack that does not have an incoming arc. 
+%
+%Our non-monotonic transition-system is based on the one introduced by
+%\citet{honnibal:14}, but uses this Unshift operation, as a better form of their
+%non-monotonic Reduce.
+%
+
+\section{Transition System}
+
+\begin{table*}
+    \begin{tabular}{|llll|}
+    \hline
+    \multicolumn{4}{|l|}{\textbf{Notation}}\\
+    \hline
+    \multicolumn{4}{|l|}{$(\sigma, \beta, \mathbf{A})$ is a configuation, where}\\
+    \multicolumn{4}{|l|}{$\sigma | s$ is a stack of word indices with topmost element $s$} \\
+    \multicolumn{4}{|l|}{$b | \beta$ is a buffer of word indices with first element $b$} \\
+    \multicolumn{4}{|l|}{$\mathbf{A}$ is a vector of head indices} \\
+    \multicolumn{4}{|l|}{$\mathbf{A}(i)=j $ denotes an arc $w_j \rightarrow w_i$}\\
+    \multicolumn{4}{|l|}{$\mathbf{A}(i)=i $ denotes an arc \textsc{root} $\rightarrow w_i$} \\
+%\mutlicolumn{4}{l|}{$\sigma | s$ denotes a stack of length $>=$ 1 with top $s$}\\
+%\mutlicolumn{4}{l|}{$b | \beta$ denotes a buffer of length $>=$ 1 beginning at $b$}\\
+        \hline
+        \textbf{Initial} & \multicolumn{3}{c|}{$([ 1 ], [2 ... n], \mathbf{A}(1) = 1)$} \\
+        \textbf{Terminal} & \multicolumn{3}{c|}{$([ i ], [ \; ], \mathbf{A})$} \\
+        \hline
+        \textbf{Shift} & $(\sigma, b | \beta, \mathbf{A}(b) = 0) $ & $\Rightarrow$ & $(\sigma | b, \beta, \mathbf{A}(b) = b) $ \\
+        \textbf{Right-Arc}  & $(\sigma | s, b | \beta, \mathbf{A})$ & $\Rightarrow$ & $(\sigma | s | b, \beta, \mathbf{A}(b)=s) $ \\
+        \textbf{Reduce}$_1$ & $(\sigma | s, \beta, \mathbf{A}(s) \neq s ) $ & $\Rightarrow$ & $(\sigma, \beta, \mathbf{A}) $ \\
+        \textbf{Reduce}$_2$ & $(\sigma | s, \beta, \mathbf{A}(s) = s)$ & $\Rightarrow$ & $(\sigma, s | \beta, \mathbf{A} )$ \\
+        \textbf{Left-Arc}$_1$ & $(\sigma | s, b | \beta, \textbf{A}(s)=s)$ & $\Rightarrow$ & $(\sigma, s | \beta, \mathbf{A}(s)=b $ \\
+        \textbf{Left-Arc}$_2$ & $(\sigma | s, b | \beta, \textbf{A})$ & $\Rightarrow$ & $(\sigma, s | \beta,\mathbf{A}(b)=s $ \\
+    \hline
+    \end{tabular}
+    \caption{Our transition system.\label{tab:trans}}
+\end{table*}
+
+\section{Non-monotonic Transition-based Parsing}
+
+Our transition-system is based on the tree-constrained arc-eager system described
+by \citet{nivre:14}.  In the original arc-eager system, there was no way to add
+an arc between two words on the stack.  This meant that parsing often halted in
+configurations that did not result in a fully connected parse.
+
+Figure \ref{fig:state} shows a configuration that would exhibit this problem.
+The buffer is exhausted, and both TODO and TODO are on the stack, with missing
+arcs. There are candidates for the missing arc:
+
+TODO
+
+\citet{nivre:14} propose an elegant solution.  Once the buffer is exhausted, if
+the word on top of the stack does not have an incoming arc, it is replaced on the
+buffer.  The parser can then choose between RightArc and Reduce/LeftArc (depending
+on whether the new $S_0$ has an incoming head).
+A key aspect of this solution is that it reforms the exceptional configuration
+into one that resembles the rest of the training data, allowing the same classifier
+to be used.
+
+The tree-constrained arc-eager system is non-monotonic, as it allows the parser
+to recover from over-predicting the Shift action in certain situations.  We now
+describe how we relax a constraint that \citet{nivre:14} impose on the use of
+their Unshift operation, allowing us to introduce additional repair capability.
+
+\section{Our Transition System}
+
+\textbf{Initial configuration.} Receive a sentence $w_1 ... w_n$. Operate over
+word indices, and denote arcs with a vector of head indices.  No dummy root token. 
+Place the index of the first word $1$ on the stack, and add a (provisional) root
+arc: $(\sigma | 1, \beta, \mathbf{A}(1)=1)$
+
+\textbf{Shift.} Move front of buffer to top of stack:
+$(\sigma, b | \beta) \rightarrow (\sigma | b, \beta)$.  Move is only valid if
+$\mathbf{A}(b)=0$. After Shift, set $\mathbf{A}(b)=b$.  That is, we encode whether
+each word has been Shifted onto the stack in the arcs. We could instead use a
+bit vector.
+
+\textbf{Reduce.} Given stack $(\sigma | s, \beta)$, pop $s$. If $\mathbf{A}(s)=s$, 
+resulting state is $(\sigma, s | \beta)$, i.e. we `unshift' $s$.  Note that $s$
+now fails the pre-condition of the Shift move, so must be attached with the
+Right-Arc or Left-Arc.
+
+\textbf{Right-Arc.} As normal.
+
+\textbf{Left-Arc.} As in \citet{honnibal:13}, allowed to `clobber' dependencies.
+
+\section{Training}
+
+We follow \citet{goldberg:12} and others in using a dynamic oracle to train
+the parser.  The oracle penalises actions which would require future non-monotonic
+actions to repair, following \citet{honnibal:13}.  If a non-monotonic action would
+allow one or more dependencies to be recovered, the non-monotonic action becomes
+the unique gold standard.
+
+
+\section{Evaluation}
+
+We compare the non-monotonic transition system against the default arc-eager
+system, the \citet{honnibal:13} non-monotonic arc eager, and the \citet{nivre:14}
+tree constraint. This is the first evaluation of the tree-constrained arc eager
+system using a dynamic oracle.
+
+As evaluation data, we use the OntoNotes corpus, with the train/dev/test split
+of the CoNLL 2012 shared task.  Automatic \textsc{pos} tags were assigned, from
+a model trained concurrently with the parser (i.e., at iteration $t$, the tagger
+predicts the tags, the parser receives the example sentence, and then the tagger
+receives the example sentence. We find this yields the same accuracy as $n$-way
+jack-knifing, but find it more convenient.)
+
+\begin{table}
+    \begin{tabular}{l|rr}
+    \hline
+    Transition System  & UAS & LAS    \\
+        \hline \hline
+Orig. Arc Eager        & 91.25 & 89.40  \\
+Tree constraint        &       &       \\
+Honnibal et al NM      &       &       \\
+Ours                   & 91.80 & 89.88 \\
+\hline
+GN13                   & 90.54 & 88.75 \\
+Zhang and Nivre (2011) & 92.26 & 90.50 \\
+MATE                   & 92.50 & 90.70 \\
+\hline
+\end{tabular}
+\end{table}
+
+\bibliography{main}
+\bibliographystyle{aclnat}
+
+
+\end{document}
